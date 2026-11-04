@@ -402,13 +402,13 @@ function drawPlan(msg){
   pOut.innerHTML='<div class="warn">✅ '+msg+'已套用到「📚 工具卡」：議課流程與提問技巧卡片會顯示本教案內容。</div>'+h;pSave.style.display='block';
 }
 function saveLib(name,cards){
-  LIB.filter(e=>e.name===name).forEach(e=>cloudDel(e.id));
-  LIB=LIB.filter(e=>e.name!==name);
   LIB.unshift({id:Date.now(),name,date:new Date().toISOString(),form:{grade:pGrade.value,topic:pTopic.value,text:pText.value,type:pType.value},cards});
-  LIB=LIB.slice(0,30);localStorage.setItem('lessonLib',JSON.stringify(LIB));renderLib();cloudPush(LIB[0]);
+  LIB=LIB.slice(0,200);localStorage.setItem('lessonLib',JSON.stringify(LIB));renderLib();cloudPush(LIB[0]);
 }
 function renderLib(){
-  libList.innerHTML=LIB.length?LIB.map(e=>'<div class="note" style="display:flex;gap:6px;align-items:center"><div style="flex:1"><b>'+esc(e.name)+'</b><br><small>'+new Date(e.date).toLocaleString('zh-TW')+'</small></div><button class="btn" style="padding:8px 12px;font-size:14px" onclick="loadLesson('+e.id+')">調出</button><button class="btn gray" style="padding:8px 12px;font-size:14px" onclick="delLesson('+e.id+')">刪除</button></div>').join(''):'<small style="color:#9ca3af">尚無已存教案，產生後會自動儲存在這裡</small>';
+  if(!LIB.length){libList.innerHTML='<small style="color:#9ca3af">尚無已存教案，產生後會自動儲存並依日期歸檔</small>';return}
+  const days={};LIB.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(e=>{const d=new Date(e.date).toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});(days[d]=days[d]||[]).push(e)});
+  libList.innerHTML=Object.keys(days).map(d=>'<h2>📅 '+d+'</h2>'+days[d].map(e=>'<div class="note" style="display:flex;gap:6px;align-items:center"><div style="flex:1"><b>'+esc(e.name)+'</b><br><small>'+new Date(e.date).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+'</small></div><button class="btn" style="padding:8px 12px;font-size:14px" onclick="loadLesson('+e.id+')">調出</button><button class="btn gray" style="padding:8px 12px;font-size:14px" onclick="delLesson('+e.id+')">刪除</button></div>').join('')).join('');
 }
 function loadLesson(id){
   const e=LIB.find(x=>x.id===id);if(!e)return;
@@ -446,8 +446,8 @@ async function cloudPull(){
   try{
     const r=await fetch(cl.url());const j=await r.json();if(!j.ok)throw new Error(j.error||'失敗');
     const all=[...LIB,...j.items],byName={};
-    all.forEach(e=>{if(!byName[e.name]||new Date(e.date)>new Date(byName[e.name].date))byName[e.name]=e});
-    LIB=Object.values(byName).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,30);
+    all.forEach(e=>{byName[e.id]=e});
+    LIB=Object.values(byName).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,200);
     localStorage.setItem('lessonLib',JSON.stringify(LIB));renderLib();
     const cloudNames=new Set(j.items.map(e=>e.id));LIB.forEach(e=>{if(!cloudNames.has(e.id))cloudPush(e)});
     cloudMsg('☁️ 已同步，共 '+LIB.length+' 份（'+new Date().toLocaleTimeString('zh-TW')+'）');
@@ -456,6 +456,7 @@ async function cloudPull(){
 function saveCloud(){localStorage.setItem('gasUrl',gasUrl.value.trim());cloudMsg('同步中…');cloudPull()}
 function clearCloud(){localStorage.removeItem('gasUrl');gasUrl.value='';cloudMsg('已停用（本機教案庫不受影響）')}
 gasUrl.value=cl.url();if(cl.url())cloudMsg('☁️ 已啟用雲端同步');
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)cloudPull()});
 renderCards();refreshKeyUI();renderLib();cloudPull();
 </script>
 </body>

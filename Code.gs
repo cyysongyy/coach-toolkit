@@ -6,7 +6,7 @@ const SHEET = 'lessons';
 function sheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let s = ss.getSheetByName(SHEET);
-  if (!s) { s = ss.insertSheet(SHEET); s.appendRow(['id', 'name', 'date', 'json']); }
+  if (!s) { s = ss.insertSheet(SHEET); s.appendRow(['id', '日期', '時間', '名稱', 'json']); }
   return s;
 }
 function out_(o) {
@@ -14,7 +14,7 @@ function out_(o) {
 }
 function doGet(e) {
   const rows = sheet_().getDataRange().getValues().slice(1);
-  const items = rows.map(function (r) { try { return JSON.parse(r[3]); } catch (x) { return null; } })
+  const items = rows.map(function (r) { try { return JSON.parse(r.filter(function (c) { return c !== ''; }).pop()); } catch (x) { return null; } })
                     .filter(function (x) { return x; });
   return out_({ ok: true, items: items });
 }
@@ -30,9 +30,10 @@ function doPost(e) {
       let js = JSON.stringify(en);
       if (js.length > 45000) { en.form.text = (en.form.text || '').slice(0, 3000); js = JSON.stringify(en); }
       if (js.length > 49000) return out_({ ok: false, error: '內容太大' });
-      const row = [String(en.id), en.name, en.date, js];
+      const dt = new Date(en.date);
+      const row = [String(en.id), Utilities.formatDate(dt, 'Asia/Taipei', 'yyyy-MM-dd'), Utilities.formatDate(dt, 'Asia/Taipei', 'HH:mm'), en.name, js];
       const i = ids.indexOf(String(en.id));
-      if (i > 0) s.getRange(i + 1, 1, 1, 4).setValues([row]); else s.appendRow(row);
+      if (i > 0) s.getRange(i + 1, 1, 1, 5).setValues([row]); else s.appendRow(row);
       return out_({ ok: true });
     }
     if (b.action === 'delete') {
