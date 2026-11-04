@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>校長 Coach 工具箱</title>
+<style>
+:root{--pri:#0b3d6b;--pril:#eaf1f8;--org:#e8761e;--orgl:#fdebd8;--ok:#10b981;--err:#ef4444;--g100:#f3f4f6;--g200:#e5e7eb;--g400:#9ca3af;--g600:#4b5563;--g900:#111827}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Microsoft JhengHei","PingFang TC",system-ui,sans-serif;background:var(--g100);color:var(--g900);padding-bottom:76px;font-size:16px;line-height:1.55}
+header{background:var(--pri);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:5;border-bottom:3px solid var(--org)}
+header h1{font-size:18px}header small{opacity:.8;font-size:12px}
+main{max-width:760px;margin:0 auto;padding:12px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#fff;border-top:1px solid var(--g200);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav button{flex:1;border:0;background:none;padding:10px 0 8px;font-size:13px;color:var(--g600)}
+nav button b{display:block;font-size:20px}
+nav button.on{color:var(--org);font-weight:700}
+.page{display:none}.page.on{display:block}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px}
+.chip{flex:none;border:1px solid var(--pri);background:#fff;color:var(--pri);border-radius:20px;padding:6px 14px;font-size:14px}
+.chip.on{background:var(--pri);color:#fff}
+.card{background:#fff;border-radius:12px;margin-bottom:10px;box-shadow:0 1px 3px #0001;overflow:hidden}
+.card>summary{list-style:none;padding:13px 14px;font-weight:700;color:var(--pri);cursor:pointer;display:flex;justify-content:space-between}
+.card>summary::after{content:"▾";color:var(--org)}
+.card[open]>summary::after{content:"▴"}
+.card .body{padding:0 14px 14px;font-size:15px}
+.card .body p{margin:6px 0}
+.q{background:var(--orgl);border-left:4px solid var(--org);padding:8px 10px;border-radius:6px;margin:6px 0}
+.tag{display:inline-block;font-size:12px;background:var(--pril);color:var(--pri);border-radius:4px;padding:1px 7px;margin-right:4px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}
+td,th{border:1px solid var(--g200);padding:6px;vertical-align:top}th{background:var(--pril)}
+.src{font-size:12px;color:var(--g400);margin-top:10px}
+input,textarea,select{width:100%;font:inherit;padding:10px;border:1px solid var(--g200);border-radius:8px;background:#fff}
+textarea{min-height:70px}
+.row{display:flex;gap:8px;margin:8px 0}
+.row>*{flex:1}
+.btn{border:0;border-radius:10px;padding:12px;font-size:16px;font-weight:700;background:var(--pri);color:#fff}
+.btn.org{background:var(--org)}.btn.red{background:var(--err)}.btn.gray{background:var(--g200);color:var(--g900)}
+.btn:disabled{opacity:.4}
+.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+.quick button{border:1px solid var(--org);background:#fff;color:var(--org);border-radius:10px;padding:10px 4px;font-size:14px;font-weight:700}
+.quick button:active{background:var(--orgl)}
+.steps{display:flex;gap:6px;margin:8px 0}
+.steps label{flex:1;text-align:center;border:1px solid var(--g200);background:#fff;border-radius:8px;padding:8px 2px;font-size:13px}
+.steps input{display:none}.steps input:checked+span{color:#fff}
+.steps label:has(input:checked){background:var(--ok);color:#fff;border-color:var(--ok)}
+.rec{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:10px;margin:8px 0}
+.rec .t{font-variant-numeric:tabular-nums;font-size:20px;font-weight:700;flex:1}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--g400)}.dot.on{background:var(--err);animation:b 1s infinite}
+@keyframes b{50%{opacity:.2}}
+.note{background:#fff;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:15px;border-left:4px solid var(--pri)}
+.note small{color:var(--g400);margin-right:6px}
+.warn{background:#fff8e1;border:1px solid #f5d98a;border-radius:8px;padding:8px 10px;font-size:13px;margin:8px 0}
+h2{font-size:16px;margin:14px 0 6px;color:var(--pri)}
+audio{width:100%;margin:6px 0}
+</style>
+</head>
+<body>
+<header><h1>🧭 校長 Coach 工具箱</h1><small>卡片查閱 · 現場記錄 · 錄音（資料只存在這支手機）</small></header>
+<main>
+<!-- 工具卡 -->
+<section class="page on" id="p-cards">
+  <div class="chips" id="cats"></div>
+  <div id="cardList"></div>
+</section>
+
+<!-- 現場 -->
+<section class="page" id="p-live">
+  <div class="warn">🔒 紀錄不記人名，只存在此手機瀏覽器內，不會上傳 GitHub 或任何地方。錄音前請先取得老師同意。</div>
+  <div id="liveSetup">
+    <h2>開始一場 Coach（不記老師姓名）</h2>
+    <input id="fTeacher" placeholder="場次標記（選填，勿填真實姓名，如：三年級國語）">
+    <div class="row"><input id="fClass" placeholder="班級／科目"><input id="fTopic" placeholder="課題（選填）"></div>
+    <button class="btn org" style="width:100%" onclick="startSession()">▶ 開始</button>
+  </div>
+  <div id="liveMain" style="display:none">
+    <div class="card"><div class="body" style="padding-top:12px"><b id="liveTitle"></b></div></div>
+    <h2>四步進度（點選完成）</h2>
+    <div class="steps" id="steps">
+      <label><input type="checkbox" data-s="1"><span>①接納</span></label>
+      <label><input type="checkbox" data-s="2"><span>②探問</span></label>
+      <label><input type="checkbox" data-s="3"><span>③鬆綁</span></label>
+      <label><input type="checkbox" data-s="4"><span>④策略</span></label>
+    </div>
+    <div class="rec"><div class="dot" id="recDot"></div><div class="t" id="recTime">00:00</div>
+      <button class="btn red" id="recBtn" style="flex:none" onclick="toggleRec()">● 錄音</button></div>
+    <h2>快速標記（帶時間）</h2>
+    <div class="quick" id="quick"></div>
+    <textarea id="noteText" placeholder="輸入筆記…（老師說了什麼、我的觀察、下一步）"></textarea>
+    <div class="row"><button class="btn" onclick="addNote()">＋ 加入筆記</button></div>
+    <h2>本場筆記</h2><div id="liveNotes"></div>
+    <div class="row"><button class="btn gray" onclick="cancelSession()">放棄</button><button class="btn org" onclick="finishSession()">✔ 結束並儲存</button></div>
+  </div>
+</section>
+
+<!-- 紀錄 -->
+<section class="page" id="p-log">
+  <div class="row"><button class="btn gray" onclick="exportAll()">⬇ 匯出全部文字</button></div>
+  <div id="logList"></div>
+</section>
+</main>
+<nav>
+  <button class="on" data-p="cards"><b>📚</b>工具卡</button>
+  <button data-p="live"><b>🎙</b>現場</button>
+  <button data-p="log"><b>🗂</b>紀錄</button>
+</nav>
+
+<script>
+/* ============ 內容資料：之後新增 coach 資料，只要在 CARDS 加一筆，並指定分類 ============ */
+const CATS=["議課流程","提問技巧","老師類型","校園文化"];
+const SRC="《透視冰山下的課堂》教育領導力發展中心 2024";
+const CARDS=[
+{cat:"議課流程",title:"四步對話法（Validate→Uncover→Reframe→Equip）",src:SRC,html:`
+<p><span class="tag">①同頻接納</span>先肯定準備，接住內在擔憂</p>
+<div class="q">「我看見你做了很完整的規劃與用心的引導語…」</div>
+<p><span class="tag">②探問恐懼</span>引導說出對「接不到球」的恐懼</p>
+<div class="q">「在剛才的對話中，你最擔心發生什麼事？」</div>
+<p><span class="tag">③鬆綁信念</span>覺察「標準答案」的尺</p>
+<div class="q">「教育現場本就無法套用單一標準，我們不求完美的流程，而是陪伴思考。」</div>
+<p><span class="tag">④提供策略</span>心態放鬆、焦慮釋放後，才帶入具體技巧（SEO 三問）</p>
+<p><b>為什麼不直接給策略？</b>老師仍受「必須完美」的恐懼卡關。案例：請老師做直覺選字 Check-in，老師第一時間是查手機找標準答案。技巧的匱乏，往往源於心態的恐懼。</p>`},
+{cat:"提問技巧",title:"SEO 三問決策卡：何時用哪一問",src:SRC,html:`
+<table><tr><th>學生狀況</th><th>診斷</th><th>策略</th></tr>
+<tr><td>簡答、跳躍結論、答案出乎意料</td><td>缺思考脈絡</td><td><b>追問</b>「我很好奇，你是怎麼一步步想到的？」</td></tr>
+<tr><td>答案絕對化、視角單一</td><td>認知侷限</td><td><b>反問</b>「永遠都是這樣嗎？有沒有什麼時候是例外？」</td></tr>
+<tr><td>瘋狂拋答案、答非所問</td><td>瞎猜標準答案</td><td><b>重問</b>「請用你的話，告訴全班老師在問什麼？」＋靜思一分鐘</td></tr></table>`},
+{cat:"提問技巧",title:"追問 Probing — 挖掘敘事脈絡",src:SRC,html:`
+<div class="q">「我很好奇…你是怎麼一步步想到這個結果的？」</div>
+<p><b>機制：</b>孩子常直接跳到結論。「我很好奇」帶有魔力，幫孩子把未說完的脈絡講清楚，也為老師爭取思考空間，無需立刻評價。</p>
+<p><b>情境：</b>孩子只給簡答、直覺反應，或答案出乎意料時。</p>`},
+{cat:"提問技巧",title:"反問 Countering — 擴充認知視野",src:SRC,html:`
+<div class="q">「永遠都是這樣嗎？有沒有什麼時候是例外？」</div>
+<p><b>機制：</b>挑戰絕對化的陳述，撐出思考廣度，看見不同情境下的可能性。</p>
+<p><b>情境：</b>答案陷入單一視角、刻板印象，或把某個 SEL 原則當死板的法律條文時。</p>`},
+{cat:"提問技巧",title:"重問 Redirecting — 校準理解偏差",src:SRC,html:`
+<div class="q">「現在老師重新把問題說一次…誰能用你的話告訴全班老師在問什麼？」</div>
+<p><b>機制：</b>給明確信號，停止瞎猜；核對全班理解，給「先安靜想一分鐘」的空間，再重新啟動討論。</p>
+<p><b>情境：</b>答非所問，或學生不假思索拋出第二、第三個答案（討好老師）時。</p>`},
+{cat:"老師類型",title:"掌控型（傳道授業）老師",src:SRC,html:`
+<p><b>水面上：</b>照稿念、無視臨場回饋、只點舉手/「安全」的學生、教具過度繁複。</p>
+<p><b>水面下情緒：</b>極度焦慮、害怕失控、擔心「接不住」學生答案、怕在觀課者面前犯錯。</p>
+<p><b>底層信念：</b>「每件事都有一把嚴格的標尺」「失去節奏等於教學失敗」「學生沒講出標準答案＝我沒教好」</p>
+<p><b>議課破口（看見課堂外延伸）：</b></p>
+<div class="q">「有哪些情境需要孩子自律，但並未發生？我們如何容許彈性？」</div>`},
+{cat:"老師類型",title:"聊天型（連結交流）老師",src:SRC,html:`
+<p><b>特徵：</b>重視關係、氣氛熱絡，但停在閒聊與經驗分享，未提煉出未來可遵循的「思考原則」。</p>
+<p><b>議課破口（提取原則）：</b></p>
+<div class="q">「在經驗交流後，你如何幫助孩子提取未來可遵循的思考方向？」</div>`},
+{cat:"校園文化",title:"SEL 不是另一門學科",src:SRC,html:`
+<p><b>迷思：</b>SEL 只是週四 15 分鐘晨圈，或每學期 10 堂抽離式課程。</p>
+<p><b>真相：</b>SEL 是「生態系」，無時無刻發生在校園生活的文化脈絡，讓學校自然長出屬於自己的模樣。</p>`},
+{cat:"校園文化",title:"微時刻：拒絕 SEL 的道德綁架",src:SRC,html:`
+<p><b>DON'T：</b>「教 SEL 的老師怎麼可以這麼生氣？」→ 把品格當標籤指責、要求壓抑真實情緒。</p>
+<p><b>DO：</b>老師當然可以生氣，情緒沒有對錯。重點是「自我覺察」與「調節」；能示範暫停、調節、重新連結，本身就是最成功的 SEL 微時刻。</p>
+<div class="q">「我們不求完美控制的課堂，只求真實互動的美麗意外。」帶著一句「我很好奇…」走進下一堂課。</div>`}
+];
+const QUICK=[["💬追問","追問：我很好奇你怎麼想到的"],["🔀反問","反問：有沒有例外？"],["🎯重問","重問：請用你的話重述問題"],
+["👍肯定","肯定老師的準備／用心"],["😟恐懼","老師說出擔心／恐懼："],["🧱信念","發現限制型信念："],
+["✨亮點","亮點／美麗意外："],["📌下一步","下一步行動："],["❓待釐清","待釐清："]];
+
+/* ============ 工具卡 ============ */
+let curCat=CATS[0];
+function renderCards(){
+  document.getElementById('cats').innerHTML=CATS.map(c=>`<button class="chip ${c===curCat?'on':''}" onclick="curCat='${c}';renderCards()">${c}</button>`).join('');
+  document.getElementById('cardList').innerHTML=CARDS.filter(c=>c.cat===curCat).map((c,i)=>
+    `<details class="card" ${i===0?'open':''}><summary>${c.title}</summary><div class="body">${c.html}<div class="src">來源：${c.src}</div></div></details>`).join('');
+}
+/* ============ 導覽 ============ */
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id==='p-'+b.dataset.p));
+  if(b.dataset.p==='log')renderLog();
+});
+/* ============ IndexedDB ============ */
+let db;
+const dbReady=new Promise((res,rej)=>{const r=indexedDB.open('coach-toolkit',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('sessions',{keyPath:'id'});
+  r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>rej(r.error)});
+const tx=(m)=>db.transaction('sessions',m).objectStore('sessions');
+const dbAll=()=>new Promise(r=>{const q=tx('readonly').getAll();q.onsuccess=()=>r(q.result)});
+const dbPut=s=>new Promise(r=>{const q=tx('readwrite').put(s);q.onsuccess=()=>r()});
+const dbDel=id=>new Promise(r=>{const q=tx('readwrite').delete(id);q.onsuccess=()=>r()});
+/* ============ 現場 ============ */
+let S=null,t0=0,rec=null,chunks=[],recStart=0,timer=null,recMime='';
+const pad=n=>String(n).padStart(2,'0');
+const fmt=ms=>{const s=Math.floor(ms/1000);return pad(Math.floor(s/60))+':'+pad(s%60)};
+document.getElementById('quick').innerHTML=QUICK.map((q,i)=>`<button onclick="quick(${i})">${q[0]}</button>`).join('');
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function startSession(){
+  const n=(JSON.parse(localStorage.getItem('coachN')||'0'))+1;localStorage.setItem('coachN',n);const teacher=fTeacher.value.trim()||('場次 '+n);
+  S={id:Date.now(),teacher,cls:fClass.value.trim(),topic:fTopic.value.trim(),date:new Date().toISOString(),notes:[],steps:[],audio:null,audioMime:'',audioMs:0};
+  t0=Date.now();
+  liveSetup.style.display='none';liveMain.style.display='block';
+  liveTitle.textContent=`${S.teacher}　${S.cls}　${S.topic}`.trim();
+  document.querySelectorAll('#steps input').forEach(i=>i.checked=false);
+  renderLive();
+}
+function addNoteRaw(txt,tag){S.notes.push({at:Date.now()-t0,tag:tag||'',text:txt});renderLive()}
+function quick(i){const t=QUICK[i];noteText.value=(t[1].endsWith('：')?t[1]:t[1]+' ');noteText.focus();noteText.dataset.tag=t[0]}
+function addNote(){const v=noteText.value.trim();if(!v)return;addNoteRaw(v,noteText.dataset.tag||'');noteText.value='';noteText.dataset.tag=''}
+function renderLive(){liveNotes.innerHTML=S.notes.slice().reverse().map(n=>`<div class="note"><small>${fmt(n.at)}</small>${n.tag?`<span class="tag">${esc(n.tag)}</span>`:''}${esc(n.text)}</div>`).join('')||'<small style="color:#9ca3af">尚無筆記</small>'}
+async function toggleRec(){
+  if(rec&&rec.state==='recording'){rec.stop();return}
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    const mime=['audio/mp4','audio/webm;codecs=opus','audio/webm'].find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m))||'';
+    recMime=mime;rec=new MediaRecorder(stream,mime?{mimeType:mime}:{});chunks=[];
+    rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+    rec.onstop=()=>{stream.getTracks().forEach(t=>t.stop());clearInterval(timer);recDot.classList.remove('on');recBtn.textContent='● 錄音';
+      S.audio=new Blob(chunks,{type:rec.mimeType||recMime});S.audioMime=S.audio.type;S.audioMs=Date.now()-recStart;
+      addNoteRaw('錄音結束（'+fmt(S.audioMs)+'）','🎙')};
+    rec.start(1000);recStart=Date.now();recDot.classList.add('on');recBtn.textContent='■ 停止';
+    timer=setInterval(()=>recTime.textContent=fmt(Date.now()-recStart),500);
+    addNoteRaw('開始錄音','🎙');
+  }catch(e){alert('無法使用麥克風：'+e.message+'\n請確認已允許瀏覽器使用麥克風，且是用 https 網址開啟。')}
+}
+async function finishSession(){
+  if(rec&&rec.state==='recording'){rec.stop();await new Promise(r=>setTimeout(r,400))}
+  addNote();
+  S.steps=[...document.querySelectorAll('#steps input:checked')].map(i=>+i.dataset.s);
+  S.durationMs=Date.now()-t0;
+  await dbReady;await dbPut(S);resetLive();alert('已儲存到「紀錄」');
+  document.querySelector('nav button[data-p=log]').click();
+}
+function cancelSession(){if(confirm('放棄本場記錄？')){if(rec&&rec.state==='recording')rec.stop();resetLive()}}
+function resetLive(){S=null;liveSetup.style.display='block';liveMain.style.display='none';recTime.textContent='00:00';fTeacher.value=fClass.value=fTopic.value=''}
+/* ============ 紀錄 ============ */
+const stepName={1:'接納',2:'探問',3:'鬆綁',4:'策略'};
+function sessText(s){return `【${s.teacher}｜${s.cls} ${s.topic}】${new Date(s.date).toLocaleString('zh-TW')}\n四步完成：${s.steps.map(x=>stepName[x]).join('、')||'無'}\n`+s.notes.map(n=>`[${fmt(n.at)}] ${n.tag} ${n.text}`).join('\n')}
+const objUrls=[];
+async function renderLog(){
+  await dbReady;objUrls.splice(0).forEach(u=>URL.revokeObjectURL(u));
+  const all=(await dbAll()).sort((a,b)=>b.id-a.id);
+  logList.innerHTML=all.length?'':'<p style="color:#9ca3af;padding:20px;text-align:center">還沒有紀錄</p>';
+  all.forEach(s=>{
+    const d=document.createElement('details');d.className='card';
+    let au='';if(s.audio){const u=URL.createObjectURL(s.audio);objUrls.push(u);const ext=s.audioMime.includes('mp4')?'m4a':'webm';
+      au=`<audio controls src="${u}"></audio><a class="btn gray" style="display:block;text-align:center;text-decoration:none;margin:4px 0" download="${esc(s.teacher)}_${s.id}.${ext}" href="${u}">⬇ 下載錄音</a>`}
+    d.innerHTML=`<summary>${esc(s.teacher)}　<small style="font-weight:400;color:#6b7280">${new Date(s.date).toLocaleDateString('zh-TW')} ${esc(s.cls)}</small></summary><div class="body">
+      <p>${[1,2,3,4].map(x=>`<span class="tag" style="${s.steps.includes(x)?'background:#10b981;color:#fff':''}">${stepName[x]}</span>`).join('')}</p>
+      ${au}${s.notes.map(n=>`<div class="note"><small>${fmt(n.at)}</small>${n.tag?`<span class="tag">${esc(n.tag)}</span>`:''}${esc(n.text)}</div>`).join('')}
+      <div class="row"><button class="btn gray" data-act="copy">複製文字</button><button class="btn red" data-act="del">刪除</button></div></div>`;
+    d.querySelector('[data-act=copy]').onclick=()=>navigator.clipboard.writeText(sessText(s)).then(()=>alert('已複製'));
+    d.querySelector('[data-act=del]').onclick=async()=>{if(confirm('確定刪除這場紀錄（含錄音）？')){await dbDel(s.id);renderLog()}};
+    logList.appendChild(d)});
+}
+async function exportAll(){
+  await dbReady;const all=(await dbAll()).sort((a,b)=>a.id-b.id);if(!all.length)return alert('沒有紀錄');
+  const b=new Blob([all.map(sessText).join('\n\n----------\n\n')],{type:'text/plain;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='coach-notes-'+new Date().toISOString().slice(0,10)+'.txt';a.click();
+}
+renderCards();
+</script>
+</body>
+</html>
