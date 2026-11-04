@@ -67,9 +67,9 @@ audio{width:100%;margin:6px 0}
   <div id="addBox" style="display:none">
     <h2>新增卡片（只存在這支手機）</h2>
     <select id="aCat"></select>
-    <input id="aNewCat" placeholder="或輸入新分類名稱（選填）" style="margin-top:8px">
-    <input id="aTitle" placeholder="標題" style="margin-top:8px">
-    <textarea id="aBody" placeholder="內容（可換行）" style="margin-top:8px;min-height:120px"></textarea>
+    <input autocomplete="off" id="aNewCat" placeholder="或輸入新分類名稱（選填）" style="margin-top:8px">
+    <input autocomplete="off" id="aTitle" placeholder="標題" style="margin-top:8px">
+    <textarea autocomplete="off" id="aBody" placeholder="內容（可換行）" style="margin-top:8px;min-height:120px"></textarea>
     <div class="row"><button class="btn gray" onclick="location.reload()">取消</button><button class="btn" onclick="saveCard()">儲存</button></div>
   </div>
 </section>
@@ -79,8 +79,8 @@ audio{width:100%;margin:6px 0}
   <div class="warn">🔒 紀錄不記人名，只存在此手機瀏覽器內，不會上傳 GitHub 或任何地方。錄音前請先取得老師同意。</div>
   <div id="liveSetup">
     <h2>開始一場 Coach（不記老師姓名）</h2>
-    <input id="fTeacher" placeholder="場次標記（選填，班級可填、勿填真實姓名，如：三年二班國語）">
-    <div class="row"><input id="fClass" placeholder="班級／科目"><input id="fTopic" placeholder="課題（選填）"></div>
+    <input autocomplete="off" id="fTeacher" placeholder="場次標記（選填，班級可填、勿填真實姓名，如：三年二班國語）">
+    <div class="row"><input autocomplete="off" id="fClass" placeholder="班級／科目"><input autocomplete="off" id="fTopic" placeholder="課題（選填）"></div>
     <select id="fType"></select>
     <button class="btn org" style="width:100%" onclick="startSession()">▶ 開始</button>
   </div>
@@ -97,7 +97,7 @@ audio{width:100%;margin:6px 0}
       <button class="btn red" id="recBtn" style="flex:none" onclick="toggleRec()">● 錄音</button></div>
     <h2>快速標記（帶時間）</h2>
     <div class="quick" id="quick"></div>
-    <textarea id="noteText" placeholder="輸入筆記…（老師說了什麼、我的觀察、下一步）"></textarea>
+    <textarea autocomplete="off" id="noteText" placeholder="輸入筆記…（老師說了什麼、我的觀察、下一步）"></textarea>
     <div class="row"><button class="btn" onclick="addNote()">＋ 加入筆記</button></div>
     <h2>本場筆記</h2><div id="liveNotes"></div>
     <div class="row"><button class="btn gray" onclick="cancelSession()">放棄</button><button class="btn org" onclick="finishSession()">✔ 結束並儲存</button></div>
@@ -109,8 +109,8 @@ audio{width:100%;margin:6px 0}
   <div class="warn">📝 貼上教案（班級可填，但不要放學生或老師姓名），系統會依教案內容產生不同深度的 SEL 三問（追問／反問／重問）。</div>
   <a class="btn" style="display:block;text-align:center;text-decoration:none;margin:8px 0" target="_blank" rel="noopener" href="https://drive.google.com/drive/u/0/folders/1QIaM3Clcp-tBEwvhzhFo78jtBMvXosAZ">📂 開啟教案資料夾（Google Drive）</a>
   <select id="pType" style="margin-bottom:8px"></select>
-  <div class="row"><input id="pGrade" placeholder="班級／科目（班級可填）"><input id="pTopic" placeholder="單元（選填）"></div>
-  <textarea id="pText" placeholder="貼上或輸入教案內容：教學目標、教學流程、活動設計、提問…" style="min-height:180px"></textarea>
+  <div class="row"><input autocomplete="off" id="pGrade" placeholder="班級／科目（班級可填）"><input autocomplete="off" id="pTopic" placeholder="單元（選填）"></div>
+  <textarea autocomplete="off" id="pText" placeholder="貼上或輸入教案內容：教學目標、教學流程、活動設計、提問…" style="min-height:180px"></textarea>
   <h2>產出架構（取自「工具卡」：議課流程 4 步 ＋ 提問 3 種）</h2>
   <div class="steps" style="flex-wrap:wrap" id="pParts">
     <label style="flex:1 1 22%"><input type="checkbox" value="validate" checked><span>①同頻接納</span></label>
@@ -130,9 +130,9 @@ audio{width:100%;margin:6px 0}
   <details class="card" style="margin-top:12px"><summary>⚙️ AI 設定（選填，金鑰只存在此手機）</summary><div class="body">
     <p>填任一個金鑰即可一鍵產生；多個都填時，依下方優先順序自動備援。不設定也能用「複製提示詞」。</p>
     <select id="aiPri"><option value="gemini">優先：Gemini</option><option value="openai">優先：ChatGPT</option><option value="claude">優先：Claude</option></select>
-    <input id="kGemini" type="password" placeholder="Gemini API Key" style="margin-top:8px">
-    <input id="kOpenai" type="password" placeholder="ChatGPT（OpenAI）API Key" style="margin-top:8px">
-    <input id="kClaude" type="password" placeholder="Claude（Anthropic）API Key" style="margin-top:8px">
+    <input autocomplete="off" id="kGemini" type="password" placeholder="Gemini API Key" style="margin-top:8px">
+    <input autocomplete="off" id="kOpenai" type="password" placeholder="ChatGPT（OpenAI）API Key" style="margin-top:8px">
+    <input autocomplete="off" id="kClaude" type="password" placeholder="Claude（Anthropic）API Key" style="margin-top:8px">
     <p class="src" id="keyStatus"></p>
     <div class="row"><button class="btn" onclick="saveKeys()">儲存</button><button class="btn gray" onclick="clearKeys()">全部清除</button></div>
     <p class="src">金鑰與教案只從這支手機直接送到各家 AI 服務，不經過本站，也不會上傳 GitHub。留白的欄位不會改動已存金鑰。</p>
