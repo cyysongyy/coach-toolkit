@@ -109,11 +109,16 @@ audio{width:100%;margin:6px 0}
   <a class="btn" style="display:block;text-align:center;text-decoration:none;margin:8px 0" target="_blank" rel="noopener" href="https://drive.google.com/drive/u/0/folders/1QIaM3Clcp-tBEwvhzhFo78jtBMvXosAZ">📂 開啟教案資料夾（Google Drive）</a>
   <div class="row"><input id="pGrade" placeholder="班級／科目（班級可填）"><input id="pTopic" placeholder="單元（選填）"></div>
   <textarea id="pText" placeholder="貼上或輸入教案內容：教學目標、教學流程、活動設計、提問…" style="min-height:180px"></textarea>
-  <select id="pDepth" style="margin-top:8px">
-    <option value="all">深度：全部層次（記憶→理解→應用→分析→評鑑→創造）</option>
-    <option value="deep">只要高階（分析／評鑑／創造）</option>
-    <option value="sel">著重 SEL 覺察與調節</option>
-  </select>
+  <h2>產出架構（取自「工具卡」：議課流程 4 步 ＋ 提問 3 種）</h2>
+  <div class="steps" style="flex-wrap:wrap" id="pParts">
+    <label style="flex:1 1 22%"><input type="checkbox" value="validate" checked><span>①同頻接納</span></label>
+    <label style="flex:1 1 22%"><input type="checkbox" value="uncover" checked><span>②探問恐懼</span></label>
+    <label style="flex:1 1 22%"><input type="checkbox" value="reframe" checked><span>③鬆綁信念</span></label>
+    <label style="flex:1 1 22%"><input type="checkbox" value="equip" checked><span>④提供策略</span></label>
+    <label style="flex:1 1 30%"><input type="checkbox" value="probing" checked><span>追問</span></label>
+    <label style="flex:1 1 30%"><input type="checkbox" value="countering" checked><span>反問</span></label>
+    <label style="flex:1 1 30%"><input type="checkbox" value="redirecting" checked><span>重問</span></label>
+  </div>
   <div class="row">
     <button class="btn org" id="pGo" onclick="genPlan()">✨ 產生提問</button>
     <button class="btn gray" onclick="copyPrompt()">複製提示詞（貼到任一 AI）</button>
@@ -299,22 +304,25 @@ async function exportAll(){
 /* ============ 教案 → 提問深化 ============ */
 let lastPlan='';
 function buildPrompt(){
-  const depth={all:'涵蓋布魯姆六層次（記憶、理解、應用、分析、評鑑、創造），由淺到深',deep:'只設計高階層次（分析、評鑑、創造）',sel:'著重 SEL：自我覺察、情緒調節、同理、關係與負責任決定'}[pDepth.value];
-  return `你是協助校長做教練式觀議課的教學提問設計顧問（台灣國小/國中）。
-請根據下面的教案，為每個主要教學環節設計「SEL 三問」，並${depth}。
-SEL 三問定義：
-- 追問(Probing)：挖掘敘事脈絡，補齊思考過程，例「我很好奇，你是怎麼一步步想到的？」
-- 反問(Countering)：擴充認知視野，打破單一視角，例「永遠都是這樣嗎？有沒有例外？」
-- 重問(Redirecting)：校準理解偏差，停止瞎猜標準答案，例「請用你的話重述問題」＋靜思一分鐘
+  const on=[...document.querySelectorAll('#pParts input:checked')].map(i=>i.value);
+  const has=k=>on.includes(k);const NL=String.fromCharCode(10);
+  const flow=[];
+  if(has('validate'))flow.push('【①同頻接納 Validate】依教案可看見的用心之處，寫 2–3 句校長可直接說的肯定話（具體指出教案中的設計），接住老師內在擔憂。');
+  if(has('uncover'))flow.push('【②探問恐懼 Uncover】推測這份教案背後老師可能害怕的情況（例：怕學生答不出、怕失控、怕沒有標準答案），並給 2 個校長可問的探問句，例「在剛才的對話中，你最擔心發生什麼事？」。');
+  if(has('reframe'))flow.push('【③鬆綁信念 Reframe】推測老師可能的限制型信念（如「沒講出標準答案＝我沒教好」），並給一段鬆綁的話，例「教育現場本就無法套用單一標準，我們不求完美的流程，而是陪伴思考」。');
+  if(has('equip')||has('probing')||has('countering')||has('redirecting')){
+    const qs=[];
+    if(has('probing'))qs.push('追問(Probing)：挖掘敘事脈絡，補齊思考過程。例「我很好奇，你是怎麼一步步想到的？」。適用：簡答、跳躍結論、答案出乎意料。');
+    if(has('countering'))qs.push('反問(Countering)：擴充認知視野，打破單一視角。例「永遠都是這樣嗎？有沒有什麼時候是例外？」。適用：絕對化答案、視角單一。');
+    if(has('redirecting'))qs.push('重問(Redirecting)：校準理解偏差，停止瞎猜標準答案。例「請用你的話重述一次問題」＋靜思一分鐘。適用：答非所問、瘋狂拋答案討好老師。');
+    flow.push('【④提供策略 Equip】針對教案的每個主要教學環節，列出「教案原本的提問 → 可升級的提問」，並預想學生可能的回應與該用哪一問：'+NL+qs.join(NL)+NL+'每個環節請依教案內容各給具體問句，不要只套範例句。');
+  }
+  return `你是協助校長做教練式觀議課的顧問（台灣國小/國中）。請根據下面的教案，依「教練式議課四步對話法＋三種提問」的架構，產出校長可直接使用的 coach 稿。
+先用 2 句話說明這份教案的教學重點，再依序輸出以下項目（繁體中文、條列、簡潔、可直接口說）：
 
-輸出格式（繁體中文，條列，簡潔）：
-1. 教案現有提問診斷：哪些停留在淺層（只問標準答案）？
-2. 逐環節提問升級：每個環節給「原本問題 → 升級後的追問／反問／重問各1題」，並標示深度層次
-3. 預期學生可能的跳躍/絕對化/答非所問回應，與對應該用哪一問
-4. 給老師的鬆綁提醒：一句話降低「必須有標準答案」的焦慮
-5. 校長議課時可問老師的 3 個教練式問題
+${flow.join(NL+NL)}
 
-年級／科目：${pGrade.value||'未填'}　單元：${pTopic.value||'未填'}
+班級／科目：${pGrade.value||'未填'}　單元：${pTopic.value||'未填'}
 【教案內容】
 ${pText.value}`}
 function copyPrompt(){if(!pText.value.trim())return alert('請先貼上教案');navigator.clipboard.writeText(buildPrompt()).then(()=>alert('已複製提示詞，可貼到 Gemini / ChatGPT / Claude'))}
