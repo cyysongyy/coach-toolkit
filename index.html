@@ -81,6 +81,7 @@ audio{width:100%;margin:6px 0}
     <h2>開始一場 Coach（不記老師姓名）</h2>
     <input id="fTeacher" placeholder="場次標記（選填，班級可填、勿填真實姓名，如：三年二班國語）">
     <div class="row"><input id="fClass" placeholder="班級／科目"><input id="fTopic" placeholder="課題（選填）"></div>
+    <select id="fType"></select>
     <button class="btn org" style="width:100%" onclick="startSession()">▶ 開始</button>
   </div>
   <div id="liveMain" style="display:none">
@@ -107,6 +108,7 @@ audio{width:100%;margin:6px 0}
 <section class="page" id="p-plan">
   <div class="warn">📝 貼上教案（班級可填，但不要放學生或老師姓名），系統會依教案內容產生不同深度的 SEL 三問（追問／反問／重問）。</div>
   <a class="btn" style="display:block;text-align:center;text-decoration:none;margin:8px 0" target="_blank" rel="noopener" href="https://drive.google.com/drive/u/0/folders/1QIaM3Clcp-tBEwvhzhFo78jtBMvXosAZ">📂 開啟教案資料夾（Google Drive）</a>
+  <select id="pType" style="margin-bottom:8px"></select>
   <div class="row"><input id="pGrade" placeholder="班級／科目（班級可填）"><input id="pTopic" placeholder="單元（選填）"></div>
   <textarea id="pText" placeholder="貼上或輸入教案內容：教學目標、教學流程、活動設計、提問…" style="min-height:180px"></textarea>
   <h2>產出架構（取自「工具卡」：議課流程 4 步 ＋ 提問 3 種）</h2>
@@ -191,6 +193,26 @@ const CARDS=[
 <p><b>特徵：</b>重視關係、氣氛熱絡，但停在閒聊與經驗分享，未提煉出未來可遵循的「思考原則」。</p>
 <p><b>議課破口（提取原則）：</b></p>
 <div class="q">「在經驗交流後，你如何幫助孩子提取未來可遵循的思考方向？」</div>`},
+{cat:"老師類型",title:"開放型老師",src:"Claude 依議課情境整理（可自行修改）",html:`
+<p><b>特徵：</b>願意嘗試新做法、歡迎回饋，課堂氣氛活絡。</p>
+<p><b>風險：</b>想法多但發散，不易收斂成原則。</p>
+<p><b>議課破口：</b></p>
+<div class="q">「這些嘗試中，哪一個你想留下來，變成下次一定會做的原則？為什麼？」</div>`},
+{cat:"老師類型",title:"保守型老師",src:"Claude 依議課情境整理（可自行修改）",html:`
+<p><b>特徵：</b>依賴既有流程與教材，求穩、怕出錯，不輕易改變。</p>
+<p><b>風險：</b>流程完整但缺少臨場互動，常有「必須完美」的信念。</p>
+<p><b>議課破口（小步調整）：</b></p>
+<div class="q">「如果只改變一個小地方，你覺得改哪裡最安全、又最有可能讓學生多說一點？」</div>`},
+{cat:"老師類型",title:"靈活型老師",src:"Claude 依議課情境整理（可自行修改）",html:`
+<p><b>特徵：</b>臨場應變佳，能順著學生反應調整節奏。</p>
+<p><b>風險：</b>靈活但主軸容易飄，調整的依據沒被說出來，難以複製。</p>
+<p><b>議課破口（說出依據）：</b></p>
+<div class="q">「剛才你臨時調整的那一刻，你看到了什麼、依據什麼決定？下次如何有意識地再做一次？」</div>`},
+{cat:"老師類型",title:"閉鎖型老師",src:"Claude 依議課情境整理（可自行修改）",html:`
+<p><b>特徵：</b>少分享、少回應、防衛心較強，對觀課與議課有戒心。</p>
+<p><b>做法：</b>先做第①步同頻接納，降低威脅感；用安全、小範圍的問題開場，不急著探恐懼或給策略。</p>
+<p><b>議課破口：</b></p>
+<div class="q">「這堂課裡，有沒有哪一個瞬間是你自己覺得最順、最滿意的？」</div>`},
 {cat:"校園文化",title:"SEL 不是另一門學科",src:SRC,html:`
 <p><b>迷思：</b>SEL 只是週四 15 分鐘晨圈，或每學期 10 堂抽離式課程。</p>
 <p><b>真相：</b>SEL 是「生態系」，無時無刻發生在校園生活的文化脈絡，讓學校自然長出屬於自己的模樣。</p>`},
@@ -240,10 +262,10 @@ document.getElementById('quick').innerHTML=QUICK.map((q,i)=>`<button onclick="qu
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function startSession(){
   const n=(JSON.parse(localStorage.getItem('coachN')||'0'))+1;localStorage.setItem('coachN',n);const teacher=fTeacher.value.trim()||('場次 '+n);
-  S={id:Date.now(),teacher,cls:fClass.value.trim(),topic:fTopic.value.trim(),date:new Date().toISOString(),notes:[],steps:[],audio:null,audioMime:'',audioMs:0};
+  S={id:Date.now(),teacher,cls:fClass.value.trim(),ttype:fType.value,topic:fTopic.value.trim(),date:new Date().toISOString(),notes:[],steps:[],audio:null,audioMime:'',audioMs:0};
   t0=Date.now();
   liveSetup.style.display='none';liveMain.style.display='block';
-  liveTitle.textContent=`${S.teacher}　${S.cls}　${S.topic}`.trim();
+  liveTitle.textContent=`${S.teacher}　${S.cls}　${S.topic}　${S.ttype}`.trim();
   document.querySelectorAll('#steps input').forEach(i=>i.checked=false);
   renderLive();
 }
@@ -288,7 +310,7 @@ async function renderLog(){
     const d=document.createElement('details');d.className='card';
     let au='';if(s.audio){const u=URL.createObjectURL(s.audio);objUrls.push(u);const ext=s.audioMime.includes('mp4')?'m4a':'webm';
       au=`<audio controls src="${u}"></audio><a class="btn gray" style="display:block;text-align:center;text-decoration:none;margin:4px 0" download="${esc(s.teacher)}_${s.id}.${ext}" href="${u}">⬇ 下載錄音</a>`}
-    d.innerHTML=`<summary>${esc(s.teacher)}　<small style="font-weight:400;color:#6b7280">${new Date(s.date).toLocaleDateString('zh-TW')} ${esc(s.cls)}</small></summary><div class="body">
+    d.innerHTML=`<summary>${esc(s.teacher)}　<small style="font-weight:400;color:#6b7280">${new Date(s.date).toLocaleDateString('zh-TW')} ${esc(s.cls)} ${esc(s.ttype||'')}</small></summary><div class="body">
       <p>${[1,2,3,4].map(x=>`<span class="tag" style="${s.steps.includes(x)?'background:#10b981;color:#fff':''}">${stepName[x]}</span>`).join('')}</p>
       ${au}${s.notes.map(n=>`<div class="note"><small>${fmt(n.at)}</small>${n.tag?`<span class="tag">${esc(n.tag)}</span>`:''}${esc(n.text)}</div>`).join('')}
       <div class="row"><button class="btn gray" data-act="copy">複製文字</button><button class="btn red" data-act="del">刪除</button></div></div>`;
@@ -322,6 +344,7 @@ function buildPrompt(){
 
 ${flow.join(NL+NL)}
 
+${pType.value?'老師類型：'+pType.value+'（請依此類型調整語氣與議課破口）':''}
 班級／科目：${pGrade.value||'未填'}　單元：${pTopic.value||'未填'}
 【教案內容】
 ${pText.value}`}
@@ -356,6 +379,8 @@ function planToCard(){
   MY.push({id:Date.now(),cat:'教案提問',title:(pGrade.value||'教案')+' '+(pTopic.value||'')+' 提問升級',body:lastPlan});
   localStorage.setItem('myCards',JSON.stringify(MY));alert('已存到「工具卡 → 教案提問」');renderCards();
 }
+const TYPES=['開放型','保守型','靈活型','閉鎖型','掌控型','聊天型'];
+[fType,pType].forEach(el=>el.innerHTML='<option value="">老師類型：未選</option>'+TYPES.map(t=>'<option>'+t+'</option>').join(''));
 renderCards();refreshKeyUI();
 </script>
 </body>
