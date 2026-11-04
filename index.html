@@ -171,8 +171,7 @@ const QUICK=[["💬追問","追問：我很好奇你怎麼想到的"],["🔀反�
 /* ============ 工具卡 ============ */
 let MY=JSON.parse(localStorage.getItem('myCards')||'[]');
 function allCats(){return [...new Set([...CATS,...MY.map(c=>c.cat)])]}
-function allCards(){return [...CARDS,...MY.map(c=>({cat:c.cat,title:c.title,src:'我的卡片',my:c.id,html:'<p>'+esc(c.body).replace(/
-/g,'<br>')+'</p><div class="row"><button class="btn gray" onclick="delCard('+c.id+')">刪除這張</button></div>'}))]}
+function allCards(){return [...CARDS,...MY.map(c=>({cat:c.cat,title:c.title,src:'我的卡片',my:c.id,html:'<p>'+esc(c.body).split(String.fromCharCode(10)).join('<br>')+'</p><div class="row"><button class="btn gray" onclick="delCard('+c.id+')">刪除這張</button></div>'}))]}
 function saveCard(){const t=aTitle.value.trim(),b=aBody.value.trim(),cat=aNewCat.value.trim()||aCat.value;if(!t||!b)return alert('請輸入標題與內容');
   MY.push({id:Date.now(),cat,title:t,body:b});localStorage.setItem('myCards',JSON.stringify(MY));curCat=cat;location.reload()}
 function delCard(id){if(confirm('刪除這張卡片？')){MY=MY.filter(c=>c.id!==id);localStorage.setItem('myCards',JSON.stringify(MY));renderCards()}}
