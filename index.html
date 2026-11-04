@@ -119,11 +119,15 @@ audio{width:100%;margin:6px 0}
   </div>
   <div id="pOut"></div>
   <div class="row"><button class="btn gray" id="pSave" style="display:none" onclick="planToCard()">存成「我的卡片」</button></div>
-  <details class="card" style="margin-top:12px"><summary>⚙️ AI 設定（選填，只存在此手機）</summary><div class="body">
-    <p>貼上 Gemini API 金鑰即可一鍵產生；不設定也能用「複製提示詞」。</p>
-    <input id="gKey" type="password" placeholder="Gemini API Key">
-    <div class="row"><button class="btn" onclick="saveKey()">儲存金鑰</button><button class="btn gray" onclick="clearKey()">清除</button></div>
-    <p class="src">金鑰與教案只從這支手機直接送到 Google，不經過本站。</p>
+  <details class="card" style="margin-top:12px"><summary>⚙️ AI 設定（選填，金鑰只存在此手機）</summary><div class="body">
+    <p>填任一個金鑰即可一鍵產生；多個都填時，依下方優先順序自動備援。不設定也能用「複製提示詞」。</p>
+    <select id="aiPri"><option value="gemini">優先：Gemini</option><option value="openai">優先：ChatGPT</option><option value="claude">優先：Claude</option></select>
+    <input id="kGemini" type="password" placeholder="Gemini API Key" style="margin-top:8px">
+    <input id="kOpenai" type="password" placeholder="ChatGPT（OpenAI）API Key" style="margin-top:8px">
+    <input id="kClaude" type="password" placeholder="Claude（Anthropic）API Key" style="margin-top:8px">
+    <p class="src" id="keyStatus"></p>
+    <div class="row"><button class="btn" onclick="saveKeys()">儲存</button><button class="btn gray" onclick="clearKeys()">全部清除</button></div>
+    <p class="src">金鑰與教案只從這支手機直接送到各家 AI 服務，不經過本站，也不會上傳 GitHub。留白的欄位不會改動已存金鑰。</p>
   </div></details>
 </section>
 
@@ -313,27 +317,37 @@ SEL 三問定義：
 【教案內容】
 ${pText.value}`}
 function copyPrompt(){if(!pText.value.trim())return alert('請先貼上教案');navigator.clipboard.writeText(buildPrompt()).then(()=>alert('已複製提示詞，可貼到 Gemini / ChatGPT / Claude'))}
-function saveKey(){localStorage.setItem('gKey',gKey.value.trim());gKey.value='';alert('已儲存在此手機')}
-function clearKey(){localStorage.removeItem('gKey');alert('已清除')}
+const PV={gemini:'Gemini',openai:'ChatGPT',claude:'Claude'};
+function refreshKeyUI(){aiPri.value=localStorage.getItem('aiPri')||'gemini';keyStatus.textContent='已設定：'+(Object.keys(PV).filter(k=>localStorage.getItem('key_'+k)).map(k=>PV[k]).join('、')||'無')}
+function saveKeys(){[['gemini',kGemini],['openai',kOpenai],['claude',kClaude]].forEach(([k,el])=>{if(el.value.trim())localStorage.setItem('key_'+k,el.value.trim());el.value=''});localStorage.setItem('aiPri',aiPri.value);refreshKeyUI();alert('已儲存在此手機')}
+function clearKeys(){Object.keys(PV).forEach(k=>localStorage.removeItem('key_'+k));refreshKeyUI()}
+const AIcall={
+ async gemini(key,prompt){const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});const j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||r.status);return j.candidates[0].content.parts.map(p=>p.text||'').join('')},
+ async openai(key,prompt){const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:'gpt-4o-mini',messages:[{role:'user',content:prompt}]})});const j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||r.status);return j.choices[0].message.content},
+ async claude(key,prompt){const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:4000,messages:[{role:'user',content:prompt}]})});const j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||r.status);return j.content.map(c=>c.text||'').join('')}
+};
 function mdLite(t){return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').split(String.fromCharCode(10)).join('<br>')}
 async function genPlan(){
   if(!pText.value.trim())return alert('請先貼上教案');
-  const key=localStorage.getItem('gKey');
-  if(!key){pOut.innerHTML='<div class="warn">尚未設定 AI 金鑰。請到下方「⚙️ AI 設定」貼上 Gemini 金鑰，或按「複製提示詞」貼到任一 AI 使用。</div>';return}
+  const pri=localStorage.getItem('aiPri')||'gemini';
+  const order=[pri,...Object.keys(PV).filter(k=>k!==pri)].filter(k=>localStorage.getItem('key_'+k));
+  if(!order.length){pOut.innerHTML='<div class="warn">尚未設定 AI 金鑰。請到下方「⚙️ AI 設定」貼上金鑰，或按「複製提示詞」貼到任一 AI 使用。</div>';return}
   pGo.disabled=true;pGo.textContent='產生中…';pOut.innerHTML='';
-  try{
-    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({contents:[{parts:[{text:buildPrompt()}]}]})});
-    const j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||r.status);
-    lastPlan=j.candidates[0].content.parts.map(p=>p.text||'').join('');
-    pOut.innerHTML='<div class="card"><div class="body" style="padding-top:12px">'+mdLite(lastPlan)+'</div></div>';pSave.style.display='block';
-  }catch(e){pOut.innerHTML='<div class="warn">產生失敗：'+esc(e.message)+'<br>可改用「複製提示詞」。</div>'}
+  const errs=[];
+  for(const k of order){
+    try{
+      lastPlan=await AIcall[k](localStorage.getItem('key_'+k),buildPrompt());
+      pOut.innerHTML='<div class="card"><div class="body" style="padding-top:12px">'+mdLite(lastPlan)+'<div class="src">由 '+PV[k]+' 產生</div></div></div>';pSave.style.display='block';errs.length=0;break;
+    }catch(e){errs.push(PV[k]+'：'+e.message)}
+  }
+  if(errs.length)pOut.innerHTML='<div class="warn">產生失敗<br>'+errs.map(esc).join('<br>')+'<br>可改用「複製提示詞」。</div>';
   pGo.disabled=false;pGo.textContent='✨ 產生提問';
 }
 function planToCard(){
   MY.push({id:Date.now(),cat:'教案提問',title:(pGrade.value||'教案')+' '+(pTopic.value||'')+' 提問升級',body:lastPlan});
   localStorage.setItem('myCards',JSON.stringify(MY));alert('已存到「工具卡 → 教案提問」');renderCards();
 }
-renderCards();
+renderCards();refreshKeyUI();
 </script>
 </body>
 </html>
