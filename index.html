@@ -112,6 +112,8 @@ audio{width:100%;margin:6px 0}
 <section class="page on" id="p-plan">
   <div class="warn">📝 貼上教案（班級可填，但不要放學生或老師姓名），系統會依教案內容產生不同深度的 SEL 四問（重問／追問／反問／結問）。</div>
   <a class="btn" style="display:block;text-align:center;text-decoration:none;margin:8px 0" target="_blank" rel="noopener" href="https://drive.google.com/drive/u/0/folders/1QIaM3Clcp-tBEwvhzhFo78jtBMvXosAZ">📂 開啟教案資料夾（Google Drive）</a>
+  <button class="btn org" style="width:100%;margin-bottom:8px" onclick="driveOpen()">⚡ 從 Drive 選教案（自動讀入）</button>
+  <div id="driveBox" style="display:none"><div id="driveList"></div><button class="btn gray" style="width:100%;margin:6px 0" onclick="driveBox.style.display='none'">收合</button></div>
   <select id="pType" style="margin-bottom:8px"></select>
   <div class="row"><input autocomplete="off" id="pGrade" placeholder="班級／科目（班級可填）"><input autocomplete="off" id="pTopic" placeholder="單元（選填）"></div>
   <textarea autocomplete="off" id="pText" placeholder="貼上或輸入教案內容：教學目標、教學流程、活動設計、提問…" style="min-height:180px"></textarea>
@@ -396,7 +398,7 @@ async function runTranscribe(id){
   await dbReady;
   const s=(await dbAll()).find(x=>x.id===id);if(!s||!s.audio)return;
   TXING[id]=true;if(document.getElementById('p-log').classList.contains('on'))renderLog();toast('轉文字並整理中…');
-  try{s.transcript=await transcribeAudio(s.audio);s.report=await aiText(sessionPrompt(s,s.transcript));s.reportAt=new Date().toISOString();s.txErr=''}
+  try{s.transcript=await transcribeAudio(s.audio);s.report=await aiText(sessionPrompt(s,s.transcript));s.reportAt=new Date().toISOString();s.txErr='';try{await autoTag(s)}catch(e2){}}
   catch(e){s.txErr=e.message}
   delete TXING[id];await dbPut(s);
   toast(s.txErr?'轉文字失敗':'文字整理完成，已存到紀錄');
@@ -409,6 +411,42 @@ function reportText(s){
 function dlReport(s){
   const b=new Blob([reportText(s)],{type:'text/plain;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='coach-'+new Date(s.date).toISOString().slice(0,10)+'-'+s.id+'.txt';a.click();
+}
+/* ===== 自動化：Drive 選教案、議課後自動標記 ===== */
+let driveItems=[];
+async function driveOpen(){
+  if(!cl.url()){toast('請先在下方「雲端同步」貼上 Apps Script 網址');return}
+  driveBox.style.display='block';driveList.innerHTML='<small>讀取中…</small>';
+  try{
+    const r=await fetch(cl.url()+'?action=files');const j=await r.json();if(!j.ok)throw new Error(j.error||'失敗');
+    driveItems=j.items;
+    driveList.innerHTML=driveItems.length?driveItems.map((f,i)=>'<div class="note" style="display:flex;gap:6px;align-items:center"><div style="flex:1"><b>'+esc(f.name)+'</b><br><small>'+new Date(f.updated).toLocaleDateString('zh-TW')+'</small></div><button class="btn gray" style="padding:8px 10px;font-size:13px" onclick="driveLoad('+i+',false)">載入</button><button class="btn org" style="padding:8px 10px;font-size:13px" onclick="driveLoad('+i+',true)">⚡載入並產生</button></div>').join(''):'<small>資料夾內沒有 Google 文件或純文字檔（Word 檔請先另存成 Google 文件）</small>';
+  }catch(e){driveList.innerHTML='<div class="warn">讀取失敗：'+esc(e.message)+'<br>若是權限問題，請在 Apps Script 重新部署新版（會要求 Drive 授權）。</div>'}
+}
+async function driveLoad(i,gen){
+  const f=driveItems[i];if(!f)return;
+  toast('讀取教案中…');
+  try{
+    const r=await fetch(cl.url()+'?action=file&id='+encodeURIComponent(f.id));const j=await r.json();if(!j.ok)throw new Error(j.error||'失敗');
+    pText.value=j.text;pTopic.value=f.name.replace(/[.]docx?$|[.]txt$/i,'');
+    ['pText','pTopic'].forEach(id=>document.getElementById(id).dispatchEvent(new Event('input')));
+    driveBox.style.display='none';window.scrollTo(0,0);
+    if(gen){await genPlan()}else toast('已載入教案');
+  }catch(e){toast('載入失敗：'+e.message)}
+}
+async function autoTag(s){
+  const q={redirecting:'重問',probing:'追問',countering:'反問',closing:'結問'};
+  const prompt=`請根據下面的觀議課逐字稿，判斷四步議課流程與四問的實際使用情形。只輸出 JSON，不要 markdown、不要說明：
+{"steps":[出現的步驟編號，1=同頻接納 2=探問恐懼 3=鬆綁信念 4=提供策略],"questions":[{"type":"redirecting|probing|countering|closing","quote":"逐字稿中的原句（不要出現真實姓名）"}]}
+只列逐字稿確實出現的內容，沒有就給空陣列。
+【逐字稿】
+${s.transcript}`;
+  const raw=await aiText(prompt);
+  const m=raw.match(/\{[\s\S]*\}/);if(!m)return;
+  let j;try{j=JSON.parse(m[0])}catch(e){j=JSON.parse(m[0].replace(/[\u0000-\u001f]+/g,' '))}
+  const st=new Set([...(s.steps||[]),...(j.steps||[]).map(Number).filter(x=>x>=1&&x<=4)]);s.steps=[...st].sort();
+  (j.questions||[]).slice(0,12).forEach(x=>{if(q[x.type]&&x.quote)s.notes.push({at:0,tag:'🤖'+q[x.type],text:String(x.quote)})});
+  s.autoTagged=true;
 }
 const objUrls=[];
 async function renderLog(){
