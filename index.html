@@ -79,7 +79,7 @@ audio{width:100%;margin:6px 0}
   <div class="warn">🔒 紀錄不記人名，只存在此手機瀏覽器內，不會上傳 GitHub 或任何地方。錄音前請先取得老師同意。</div>
   <div id="liveSetup">
     <h2>開始一場 Coach（不記老師姓名）</h2>
-    <input id="fTeacher" placeholder="場次標記（選填，勿填真實姓名，如：三年級國語）">
+    <input id="fTeacher" placeholder="場次標記（選填，班級可填、勿填真實姓名，如：三年二班國語）">
     <div class="row"><input id="fClass" placeholder="班級／科目"><input id="fTopic" placeholder="課題（選填）"></div>
     <button class="btn org" style="width:100%" onclick="startSession()">▶ 開始</button>
   </div>
@@ -105,8 +105,8 @@ audio{width:100%;margin:6px 0}
 
 <!-- 教案 -->
 <section class="page" id="p-plan">
-  <div class="warn">📝 貼上教案（不要放學生或老師姓名），系統會依教案內容產生不同深度的 SEL 三問（追問／反問／重問）。</div>
-  <div class="row"><input id="pGrade" placeholder="年級／科目"><input id="pTopic" placeholder="單元（選填）"></div>
+  <div class="warn">📝 貼上教案（班級可填，但不要放學生或老師姓名），系統會依教案內容產生不同深度的 SEL 三問（追問／反問／重問）。</div>
+  <div class="row"><input id="pGrade" placeholder="班級／科目（班級可填）"><input id="pTopic" placeholder="單元（選填）"></div>
   <textarea id="pText" placeholder="貼上或輸入教案內容：教學目標、教學流程、活動設計、提問…" style="min-height:180px"></textarea>
   <select id="pDepth" style="margin-top:8px">
     <option value="all">深度：全部層次（記憶→理解→應用→分析→評鑑→創造）</option>
