@@ -103,6 +103,30 @@ audio{width:100%;margin:6px 0}
   </div>
 </section>
 
+<!-- 教案 -->
+<section class="page" id="p-plan">
+  <div class="warn">📝 貼上教案（不要放學生或老師姓名），系統會依教案內容產生不同深度的 SEL 三問（追問／反問／重問）。</div>
+  <div class="row"><input id="pGrade" placeholder="年級／科目"><input id="pTopic" placeholder="單元（選填）"></div>
+  <textarea id="pText" placeholder="貼上或輸入教案內容：教學目標、教學流程、活動設計、提問…" style="min-height:180px"></textarea>
+  <select id="pDepth" style="margin-top:8px">
+    <option value="all">深度：全部層次（記憶→理解→應用→分析→評鑑→創造）</option>
+    <option value="deep">只要高階（分析／評鑑／創造）</option>
+    <option value="sel">著重 SEL 覺察與調節</option>
+  </select>
+  <div class="row">
+    <button class="btn org" id="pGo" onclick="genPlan()">✨ 產生提問</button>
+    <button class="btn gray" onclick="copyPrompt()">複製提示詞（貼到任一 AI）</button>
+  </div>
+  <div id="pOut"></div>
+  <div class="row"><button class="btn gray" id="pSave" style="display:none" onclick="planToCard()">存成「我的卡片」</button></div>
+  <details class="card" style="margin-top:12px"><summary>⚙️ AI 設定（選填，只存在此手機）</summary><div class="body">
+    <p>貼上 Gemini API 金鑰即可一鍵產生；不設定也能用「複製提示詞」。</p>
+    <input id="gKey" type="password" placeholder="Gemini API Key">
+    <div class="row"><button class="btn" onclick="saveKey()">儲存金鑰</button><button class="btn gray" onclick="clearKey()">清除</button></div>
+    <p class="src">金鑰與教案只從這支手機直接送到 Google，不經過本站。</p>
+  </div></details>
+</section>
+
 <!-- 紀錄 -->
 <section class="page" id="p-log">
   <div class="row"><button class="btn gray" onclick="exportAll()">⬇ 匯出全部文字</button></div>
@@ -112,6 +136,7 @@ audio{width:100%;margin:6px 0}
 <nav>
   <button class="on" data-p="cards"><b>📚</b>工具卡</button>
   <button data-p="live"><b>🎙</b>現場</button>
+  <button data-p="plan"><b>📝</b>教案</button>
   <button data-p="log"><b>🗂</b>紀錄</button>
 </nav>
 
@@ -265,6 +290,48 @@ async function exportAll(){
   await dbReady;const all=(await dbAll()).sort((a,b)=>a.id-b.id);if(!all.length)return alert('沒有紀錄');
   const b=new Blob([all.map(sessText).join('\n\n----------\n\n')],{type:'text/plain;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='coach-notes-'+new Date().toISOString().slice(0,10)+'.txt';a.click();
+}
+/* ============ 教案 → 提問深化 ============ */
+let lastPlan='';
+function buildPrompt(){
+  const depth={all:'涵蓋布魯姆六層次（記憶、理解、應用、分析、評鑑、創造），由淺到深',deep:'只設計高階層次（分析、評鑑、創造）',sel:'著重 SEL：自我覺察、情緒調節、同理、關係與負責任決定'}[pDepth.value];
+  return `你是協助校長做教練式觀議課的教學提問設計顧問（台灣國小/國中）。
+請根據下面的教案，為每個主要教學環節設計「SEL 三問」，並${depth}。
+SEL 三問定義：
+- 追問(Probing)：挖掘敘事脈絡，補齊思考過程，例「我很好奇，你是怎麼一步步想到的？」
+- 反問(Countering)：擴充認知視野，打破單一視角，例「永遠都是這樣嗎？有沒有例外？」
+- 重問(Redirecting)：校準理解偏差，停止瞎猜標準答案，例「請用你的話重述問題」＋靜思一分鐘
+
+輸出格式（繁體中文，條列，簡潔）：
+1. 教案現有提問診斷：哪些停留在淺層（只問標準答案）？
+2. 逐環節提問升級：每個環節給「原本問題 → 升級後的追問／反問／重問各1題」，並標示深度層次
+3. 預期學生可能的跳躍/絕對化/答非所問回應，與對應該用哪一問
+4. 給老師的鬆綁提醒：一句話降低「必須有標準答案」的焦慮
+5. 校長議課時可問老師的 3 個教練式問題
+
+年級／科目：${pGrade.value||'未填'}　單元：${pTopic.value||'未填'}
+【教案內容】
+${pText.value}`}
+function copyPrompt(){if(!pText.value.trim())return alert('請先貼上教案');navigator.clipboard.writeText(buildPrompt()).then(()=>alert('已複製提示詞，可貼到 Gemini / ChatGPT / Claude'))}
+function saveKey(){localStorage.setItem('gKey',gKey.value.trim());gKey.value='';alert('已儲存在此手機')}
+function clearKey(){localStorage.removeItem('gKey');alert('已清除')}
+function mdLite(t){return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').split(String.fromCharCode(10)).join('<br>')}
+async function genPlan(){
+  if(!pText.value.trim())return alert('請先貼上教案');
+  const key=localStorage.getItem('gKey');
+  if(!key){pOut.innerHTML='<div class="warn">尚未設定 AI 金鑰。請到下方「⚙️ AI 設定」貼上 Gemini 金鑰，或按「複製提示詞」貼到任一 AI 使用。</div>';return}
+  pGo.disabled=true;pGo.textContent='產生中…';pOut.innerHTML='';
+  try{
+    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({contents:[{parts:[{text:buildPrompt()}]}]})});
+    const j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||r.status);
+    lastPlan=j.candidates[0].content.parts.map(p=>p.text||'').join('');
+    pOut.innerHTML='<div class="card"><div class="body" style="padding-top:12px">'+mdLite(lastPlan)+'</div></div>';pSave.style.display='block';
+  }catch(e){pOut.innerHTML='<div class="warn">產生失敗：'+esc(e.message)+'<br>可改用「複製提示詞」。</div>'}
+  pGo.disabled=false;pGo.textContent='✨ 產生提問';
+}
+function planToCard(){
+  MY.push({id:Date.now(),cat:'教案提問',title:(pGrade.value||'教案')+' '+(pTopic.value||'')+' 提問升級',body:lastPlan});
+  localStorage.setItem('myCards',JSON.stringify(MY));alert('已存到「工具卡 → 教案提問」');renderCards();
 }
 renderCards();
 </script>
