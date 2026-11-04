@@ -63,6 +63,15 @@ audio{width:100%;margin:6px 0}
 <section class="page on" id="p-cards">
   <div class="chips" id="cats"></div>
   <div id="cardList"></div>
+  <button class="btn org" style="width:100%;margin-top:8px" onclick="document.getElementById('addBox').style.display='block';this.style.display='none'">＋ 新增我的卡片</button>
+  <div id="addBox" style="display:none">
+    <h2>新增卡片（只存在這支手機）</h2>
+    <select id="aCat"></select>
+    <input id="aNewCat" placeholder="或輸入新分類名稱（選填）" style="margin-top:8px">
+    <input id="aTitle" placeholder="標題" style="margin-top:8px">
+    <textarea id="aBody" placeholder="內容（可換行）" style="margin-top:8px;min-height:120px"></textarea>
+    <div class="row"><button class="btn gray" onclick="location.reload()">取消</button><button class="btn" onclick="saveCard()">儲存</button></div>
+  </div>
 </section>
 
 <!-- 現場 -->
@@ -160,10 +169,18 @@ const QUICK=[["💬追問","追問：我很好奇你怎麼想到的"],["🔀反�
 ["✨亮點","亮點／美麗意外："],["📌下一步","下一步行動："],["❓待釐清","待釐清："]];
 
 /* ============ 工具卡 ============ */
+let MY=JSON.parse(localStorage.getItem('myCards')||'[]');
+function allCats(){return [...new Set([...CATS,...MY.map(c=>c.cat)])]}
+function allCards(){return [...CARDS,...MY.map(c=>({cat:c.cat,title:c.title,src:'我的卡片',my:c.id,html:'<p>'+esc(c.body).replace(/
+/g,'<br>')+'</p><div class="row"><button class="btn gray" onclick="delCard('+c.id+')">刪除這張</button></div>'}))]}
+function saveCard(){const t=aTitle.value.trim(),b=aBody.value.trim(),cat=aNewCat.value.trim()||aCat.value;if(!t||!b)return alert('請輸入標題與內容');
+  MY.push({id:Date.now(),cat,title:t,body:b});localStorage.setItem('myCards',JSON.stringify(MY));curCat=cat;location.reload()}
+function delCard(id){if(confirm('刪除這張卡片？')){MY=MY.filter(c=>c.id!==id);localStorage.setItem('myCards',JSON.stringify(MY));renderCards()}}
 let curCat=CATS[0];
 function renderCards(){
-  document.getElementById('cats').innerHTML=CATS.map(c=>`<button class="chip ${c===curCat?'on':''}" onclick="curCat='${c}';renderCards()">${c}</button>`).join('');
-  document.getElementById('cardList').innerHTML=CARDS.filter(c=>c.cat===curCat).map((c,i)=>
+  aCat.innerHTML=allCats().map(c=>`<option>${c}</option>`).join('');
+  document.getElementById('cats').innerHTML=allCats().map(c=>`<button class="chip ${c===curCat?'on':''}" onclick="curCat='${c}';renderCards()">${c}</button>`).join('');
+  document.getElementById('cardList').innerHTML=allCards().filter(c=>c.cat===curCat).map((c,i)=>
     `<details class="card" ${i===0?'open':''}><summary>${c.title}</summary><div class="body">${c.html}<div class="src">來源：${c.src}</div></div></details>`).join('');
 }
 /* ============ 導覽 ============ */
