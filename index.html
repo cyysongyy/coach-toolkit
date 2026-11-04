@@ -236,10 +236,10 @@ function lessonHtml(key){
   const keys=key==='flow'?['validate','uncover','reframe','equip']:[key];
   const items=keys.map(k=>LESSON.items[k]).filter(Boolean);
   if(!items.length)return '';
-  return '<div class="lesson"><h4>📌 本教案：'+esc(LESSON.name)+'</h4>'+items.map(i=>'<p><b>'+esc(i.title)+'</b></p><p>'+mdLite(i.body)+'</p>').join('')+'</div>';
+  return '<div class="lesson"><h4>📌 依教案產生：'+esc(LESSON.name)+'</h4>'+items.map(i=>'<p><b>'+esc(i.title)+'</b></p><p>'+mdLite(i.body)+'</p>').join('')+'</div>';
 }
 function clearLesson(){LESSON=null;localStorage.removeItem('lesson');renderCards()}
-function allCards(){return [...CARDS.map(c=>({...c,html:c.html+lessonHtml(c.key)})),...MY.map(c=>({cat:c.cat,title:c.title,src:'我的卡片',my:c.id,html:'<p>'+esc(c.body).split(String.fromCharCode(10)).join('<br>')+'</p><div class="row"><button class="btn gray" onclick="delCard('+c.id+')">刪除這張</button></div>'}))]}
+function allCards(){return [...CARDS.map(c=>{const L=lessonHtml(c.key);return {...c,html:L?L+'<details style="margin-top:10px"><summary style="color:#6b7280;font-size:13px">通用版內容（原始卡片）</summary>'+c.html+'</details>':c.html}}),...MY.map(c=>({cat:c.cat,title:c.title,src:'我的卡片',my:c.id,html:'<p>'+esc(c.body).split(String.fromCharCode(10)).join('<br>')+'</p><div class="row"><button class="btn gray" onclick="delCard('+c.id+')">刪除這張</button></div>'}))]}
 function saveCard(){const t=aTitle.value.trim(),b=aBody.value.trim(),cat=aNewCat.value.trim()||aCat.value;if(!t||!b)return alert('請輸入標題與內容');
   MY.push({id:Date.now(),cat,title:t,body:b});localStorage.setItem('myCards',JSON.stringify(MY));curCat=cat;location.reload()}
 function delCard(id){if(confirm('刪除這張卡片？')){MY=MY.filter(c=>c.id!==id);localStorage.setItem('myCards',JSON.stringify(MY));renderCards()}}
