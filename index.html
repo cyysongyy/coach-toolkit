@@ -129,6 +129,8 @@ audio{width:100%;margin:6px 0}
   </div>
   <div id="pOut"></div>
   <div class="row"><button class="btn gray" id="pSave" style="display:none" onclick="planToCard()">另存為永久卡片</button></div>
+  <h2>📂 已存教案（隨時調出，只存在此手機）</h2>
+  <div id="libList"></div>
   <details class="card" style="margin-top:12px"><summary>⚙️ AI 設定（選填，金鑰只存在此手機）</summary><div class="body">
     <p>填任一個金鑰即可一鍵產生；多個都填時，依下方優先順序自動備援。不設定也能用「複製提示詞」。</p>
     <select id="aiPri"><option value="gemini">優先：Gemini</option><option value="openai">優先：ChatGPT</option><option value="claude">優先：Claude</option></select>
@@ -382,17 +384,38 @@ async function genPlan(){
 }
 let planCards=[];
 function guessKey(t){return t.includes('追問')?'probing':t.includes('反問')?'countering':t.includes('重問')?'redirecting':t.includes('①')?'validate':t.includes('②')?'uncover':t.includes('③')?'reframe':t.includes('④')?'equip':''}
+let LIB=JSON.parse(localStorage.getItem('lessonLib')||'[]');
+function applyCards(name,cards){
+  planCards=cards;const its={};cards.forEach(c=>{if(c.key)its[c.key]={title:c.title,body:c.body}});
+  if(Object.keys(its).length){LESSON={name,items:its};localStorage.setItem('lesson',JSON.stringify(LESSON));renderCards()}
+}
+function drawPlan(msg){
+  let h='',last='';
+  planCards.forEach((c,i)=>{if(c.cat!==last){h+='<h2>'+esc(c.cat)+'</h2>';last=c.cat}
+    h+='<details class="card" '+(i===0?'open':'')+'><summary>'+esc(c.title)+'</summary><div class="body">'+mdLite(c.body)+'</div></details>'});
+  pOut.innerHTML='<div class="warn">✅ '+msg+'已套用到「📚 工具卡」：議課流程與提問技巧卡片會顯示本教案內容。</div>'+h;pSave.style.display='block';
+}
+function saveLib(name,cards){
+  LIB=LIB.filter(e=>e.name!==name);
+  LIB.unshift({id:Date.now(),name,date:new Date().toISOString(),form:{grade:pGrade.value,topic:pTopic.value,text:pText.value,type:pType.value},cards});
+  LIB=LIB.slice(0,30);localStorage.setItem('lessonLib',JSON.stringify(LIB));renderLib();
+}
+function renderLib(){
+  libList.innerHTML=LIB.length?LIB.map(e=>'<div class="note" style="display:flex;gap:6px;align-items:center"><div style="flex:1"><b>'+esc(e.name)+'</b><br><small>'+new Date(e.date).toLocaleString('zh-TW')+'</small></div><button class="btn" style="padding:8px 12px;font-size:14px" onclick="loadLesson('+e.id+')">調出</button><button class="btn gray" style="padding:8px 12px;font-size:14px" onclick="delLesson('+e.id+')">刪除</button></div>').join(''):'<small style="color:#9ca3af">尚無已存教案，產生後會自動儲存在這裡</small>';
+}
+function loadLesson(id){
+  const e=LIB.find(x=>x.id===id);if(!e)return;
+  pGrade.value=e.form.grade||'';pTopic.value=e.form.topic||'';pText.value=e.form.text||'';pType.value=e.form.type||'';
+  applyCards(e.name,e.cards);drawPlan('已調出「'+esc(e.name)+'」，');window.scrollTo(0,0);
+}
+function delLesson(id){if(confirm('刪除這份已存教案？')){LIB=LIB.filter(x=>x.id!==id);localStorage.setItem('lessonLib',JSON.stringify(LIB));renderLib()}}
 function showPlan(raw,who){
   planCards=[];
   try{const m=raw.match(/\[[\s\S]*\]/);let a;try{a=JSON.parse(m[0])}catch(e2){a=JSON.parse(m[0].replace(/[\u0000-\u001f]+/g,' '))}planCards=a.filter(c=>c&&c.title&&c.body).map(c=>({key:c.key||guessKey(c.title),cat:c.cat==='提問技巧'?'提問技巧':'議課流程',title:String(c.title),body:String(c.body)}))}catch(e){}
   if(!planCards.length)planCards=[{key:'',cat:'議課流程',title:'教案 coach 稿',body:raw}];
   const lname=((pGrade.value||'教案')+' '+(pTopic.value||'')).trim();
-  const its={};planCards.forEach(c=>{if(c.key)its[c.key]={title:c.title,body:c.body}});
-  if(Object.keys(its).length){LESSON={name:lname,items:its};localStorage.setItem('lesson',JSON.stringify(LESSON));renderCards()}
-  let h='',last='';
-  planCards.forEach((c,i)=>{if(c.cat!==last){h+='<h2>'+esc(c.cat)+'</h2>';last=c.cat}
-    h+='<details class="card" '+(i===0?'open':'')+'><summary>'+esc(c.title)+'</summary><div class="body">'+mdLite(c.body)+'</div></details>'});
-  pOut.innerHTML='<div class="warn">✅ 已套用到「📚 工具卡」：議課流程與提問技巧卡片下方，會出現本教案專屬內容。</div>'+h+'<div class="src">依教案由 '+who+' 產生（架構同工具卡）</div>';pSave.style.display='block';
+  applyCards(lname,planCards);saveLib(lname,planCards);
+  drawPlan('由 '+who+' 產生並自動儲存到「已存教案」，')
 }
 function planToCard(){
   const tag='【'+((pGrade.value||'教案')+' '+(pTopic.value||'')).trim()+'】';
@@ -402,7 +425,7 @@ function planToCard(){
 const TYPES=['OP','CO','FL','CL','CT','CH'];
 const TYPEDESC={OP:'開放型：願意嘗試、歡迎回饋，但想法多、不易收斂成原則',CO:'保守型：依賴既有流程、求穩，常有必須完美的信念',FL:'靈活型：臨場應變佳，但調整依據未說出、難以複製',CL:'閉鎖型：少分享、防衛心較強，宜先同頻接納',CT:'掌控型：照稿進行、怕失控、只點安全的學生',CH:'聊天型：重視關係、氣氛熱絡，但停在閒聊與經驗分享'};
 [fType,pType].forEach(el=>el.innerHTML='<option value="">老師類型：未選</option>'+TYPES.map(t=>'<option>'+t+'</option>').join(''));
-renderCards();refreshKeyUI();
+renderCards();refreshKeyUI();renderLib();
 </script>
 </body>
 </html>
