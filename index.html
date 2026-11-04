@@ -320,7 +320,7 @@ async function toggleRec(){
   try{
     const stream=await navigator.mediaDevices.getUserMedia({audio:true});
     const mime=['audio/mp4','audio/webm;codecs=opus','audio/webm'].find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m))||'';
-    recMime=mime;rec=new MediaRecorder(stream,mime?{mimeType:mime}:{});chunks=[];
+    recMime=mime;rec=new MediaRecorder(stream,mime?{mimeType:mime,audioBitsPerSecond:32000}:{audioBitsPerSecond:32000});chunks=[];
     rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
     rec.onstop=()=>{stream.getTracks().forEach(t=>t.stop());clearInterval(timer);recDot.classList.remove('on');recBtn.textContent='● 錄音';
       S.audio=new Blob(chunks,{type:rec.mimeType||recMime});S.audioMime=S.audio.type;S.audioMs=Date.now()-recStart;
