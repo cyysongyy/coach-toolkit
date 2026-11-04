@@ -143,12 +143,13 @@ audio{width:100%;margin:6px 0}
   <details class="card" style="margin-top:12px"><summary>⚙️ AI 設定（選填，金鑰只存在此手機）</summary><div class="body">
     <p>填任一個金鑰即可一鍵產生；多個都填時，依下方優先順序自動備援。不設定也能用「複製提示詞」。</p>
     <select id="aiPri"><option value="gemini">優先：Gemini</option><option value="openai">優先：ChatGPT</option><option value="claude">優先：Claude</option></select>
+    <label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" id="autoTxBox" style="width:auto"> 錄音結束後自動轉文字並整理（需 OpenAI 或 Gemini 金鑰）</label>
     <input autocomplete="off" id="kGemini" type="password" placeholder="Gemini API Key" style="margin-top:8px">
     <input autocomplete="off" id="kOpenai" type="password" placeholder="ChatGPT（OpenAI）API Key" style="margin-top:8px">
     <input autocomplete="off" id="kClaude" type="password" placeholder="Claude（Anthropic）API Key" style="margin-top:8px">
     <p class="src" id="keyStatus"></p>
     <div class="row"><button class="btn" onclick="saveKeys()">儲存</button><button class="btn gray" onclick="clearKeys()">全部清除</button></div>
-    <p class="src">金鑰與教案只從這支手機直接送到各家 AI 服務，不經過本站，也不會上傳 GitHub。留白的欄位不會改動已存金鑰。</p>
+    <p class="src">金鑰、教案與錄音只從這支手機直接送到各家 AI 服務（轉文字：OpenAI 或 Gemini；Claude 不支援音訊，只負責整理文字），不經過本站，也不會上傳 GitHub。留白的欄位不會改動已存金鑰。</p>
   </div></details>
 </section>
 
@@ -335,7 +336,9 @@ async function finishSession(){
   addNote();
   S.steps=[...document.querySelectorAll('#steps input:checked')].map(i=>+i.dataset.s);
   S.durationMs=Date.now()-t0;S.draft=false;S.draftText='';
+  const fid=S.id,fAudio=!!S.audio;
   clearTimeout(asT);await dbReady;await dbPut(S);resetLive();toast('已自動儲存到「紀錄」');
+  if(fAudio&&localStorage.getItem('autoTx')!=='0'&&(localStorage.getItem('key_openai')||localStorage.getItem('key_gemini')))setTimeout(()=>runTranscribe(fid),600);
   document.querySelector('nav button[data-p=log]').click();
 }
 function cancelSession(){if(confirm('放棄本場記錄？')){if(rec&&rec.state==='recording')rec.stop();const id=S&&S.id;clearTimeout(asT);resetLive();if(id)dbReady.then(()=>dbDel(id))}}
@@ -343,6 +346,70 @@ function resetLive(){S=null;liveSetup.style.display='block';liveMain.style.displ
 /* ============ 紀錄 ============ */
 const stepName={1:'接納',2:'探問',3:'鬆綁',4:'策略'};
 function sessText(s){return `【${s.teacher}｜${s.cls} ${s.topic}】${new Date(s.date).toLocaleString('zh-TW')}\n四步完成：${s.steps.map(x=>stepName[x]).join('、')||'無'}\n`+s.notes.map(n=>`[${fmt(n.at)}] ${n.tag} ${n.text}`).join('\n')}
+/* ===== 錄音 → 轉文字 → 整理（需要金鑰） ===== */
+const TXING={};
+async function transcribeAudio(blob){
+  const ko=localStorage.getItem('key_openai'),kg=localStorage.getItem('key_gemini');
+  if(blob.size>24*1024*1024)throw new Error('錄音超過 24MB，太長無法轉文字');
+  if(ko){
+    const ext=(blob.type||'').includes('mp4')?'m4a':'webm';
+    const fd=new FormData();fd.append('file',blob,'rec.'+ext);fd.append('model','whisper-1');fd.append('language','zh');fd.append('prompt','以下是繁體中文的教學觀議課對話。');
+    const r=await fetch('https://api.openai.com/v1/audio/transcriptions',{method:'POST',headers:{Authorization:'Bearer '+ko},body:fd});
+    const j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||r.status);return j.text;
+  }
+  if(kg){
+    const b64=await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(String(fr.result).split(',')[1]);fr.onerror=rej;fr.readAsDataURL(blob)});
+    const mime=(blob.type||'audio/webm').split(';')[0];
+    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':kg},body:JSON.stringify({contents:[{parts:[{text:'請將這段錄音逐字轉成繁體中文逐字稿，不要摘要、不要加任何說明。'},{inline_data:{mime_type:mime,data:b64}}]}]})});
+    const j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||r.status);
+    return j.candidates[0].content.parts.map(p=>p.text||'').join('');
+  }
+  throw new Error('轉文字需要 OpenAI（ChatGPT）或 Gemini 金鑰，請到教案分頁的「AI 設定」填寫');
+}
+async function aiText(prompt){
+  const pri=localStorage.getItem('aiPri')||'gemini';
+  const order=[pri,...Object.keys(PV).filter(k=>k!==pri)].filter(k=>localStorage.getItem('key_'+k));
+  if(!order.length)throw new Error('尚未設定 AI 金鑰');
+  const errs=[];
+  for(const k of order){try{return await AIcall[k](localStorage.getItem('key_'+k),prompt)}catch(e){errs.push(PV[k]+'：'+e.message)}}
+  throw new Error(errs.join('；'));
+}
+function sessionPrompt(s,tx){
+  const notes=s.notes.map(n=>'['+fmt(n.at)+'] '+(n.tag||'')+' '+n.text).join(String.fromCharCode(10))||'（無）';
+  return `你是教練式觀議課的記錄整理助理（台灣）。請把下面的逐字稿與現場筆記，整理成校長可存檔的文字紀錄。
+規則：繁體中文、條列、簡潔；只根據逐字稿與筆記，不要杜撰；不要出現真實姓名，若有請以「老師」「學生」代稱。
+格式：
+【一、重點摘要】3–5 點
+【二、議課四步進度】依 ①同頻接納 ②探問恐懼 ③鬆綁信念 ④提供策略，各列出對話中對應的內容（沒有就寫「未見」）
+【三、四問使用情形】重問、追問、反問、結問各出現的句子與老師的回應（沒有就寫「未見」）
+【四、老師的擔憂與信念】
+【五、決定與下一步行動】
+【六、待釐清事項】
+
+場次：${s.teacher}　班級／科目：${s.cls||'未填'}　課題：${s.topic||'未填'}　${s.ttype?'老師類型：'+(TYPEDESC[s.ttype]||s.ttype):''}
+【現場筆記】
+${notes}
+【逐字稿】
+${tx}`;
+}
+async function runTranscribe(id){
+  await dbReady;
+  const s=(await dbAll()).find(x=>x.id===id);if(!s||!s.audio)return;
+  TXING[id]=true;if(document.getElementById('p-log').classList.contains('on'))renderLog();toast('轉文字並整理中…');
+  try{s.transcript=await transcribeAudio(s.audio);s.report=await aiText(sessionPrompt(s,s.transcript));s.reportAt=new Date().toISOString();s.txErr=''}
+  catch(e){s.txErr=e.message}
+  delete TXING[id];await dbPut(s);
+  toast(s.txErr?'轉文字失敗':'文字整理完成，已存到紀錄');
+  if(document.getElementById('p-log').classList.contains('on'))renderLog();
+}
+function reportText(s){
+  const NL=String.fromCharCode(10);
+  return '【'+s.teacher+'｜'+(s.cls||'')+' '+(s.topic||'')+'】'+new Date(s.date).toLocaleString('zh-TW')+NL+NL+(s.report||'')+NL+NL+'=== 逐字稿 ==='+NL+(s.transcript||'')+NL+NL+'=== 現場筆記 ==='+NL+sessText(s);
+}
+function dlReport(s){
+  const b=new Blob([reportText(s)],{type:'text/plain;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='coach-'+new Date(s.date).toISOString().slice(0,10)+'-'+s.id+'.txt';a.click();
+}
 const objUrls=[];
 async function renderLog(){
   await dbReady;objUrls.splice(0).forEach(u=>URL.revokeObjectURL(u));
@@ -352,11 +419,16 @@ async function renderLog(){
     const d=document.createElement('details');d.className='card';
     let au='';if(s.audio){const u=URL.createObjectURL(s.audio);objUrls.push(u);const ext=s.audioMime.includes('mp4')?'m4a':'webm';
       au=`<audio controls src="${u}"></audio><a class="btn gray" style="display:block;text-align:center;text-decoration:none;margin:4px 0" download="${esc(s.teacher)}_${s.id}.${ext}" href="${u}">⬇ 下載錄音</a>`}
+    const txHtml=(s.audio?(TXING[s.id]?'<p>⏳ 轉文字並整理中…</p>':'<div class="row"><button class="btn org" data-act="tx">'+(s.report?'🎧 重新轉文字並整理':'🎧 轉文字並整理')+'</button></div>'):'')
+      +(s.report?'<div class="lesson"><h4>📄 整理後文字</h4><p>'+mdLite(s.report)+'</p><div class="row"><button class="btn" data-act="dl">⬇ 下載文字檔</button><button class="btn gray" data-act="cprep">複製</button></div>'+(s.transcript?'<details><summary>逐字稿</summary><p>'+mdLite(s.transcript)+'</p></details>':'')+'</div>':(s.txErr?'<div class="warn">轉文字失敗：'+esc(s.txErr)+'</div>':''));
     d.innerHTML=`<summary>${esc(s.teacher)}　<small style="font-weight:400;color:#6b7280">${new Date(s.date).toLocaleDateString('zh-TW')} ${esc(s.cls)} ${esc(s.ttype||'')}${s.draft?' ‧ 進行中':''}</small></summary><div class="body">
       <p>${[1,2,3,4].map(x=>`<span class="tag" style="${s.steps.includes(x)?'background:#10b981;color:#fff':''}">${stepName[x]}</span>`).join('')}</p>
-      ${au}${s.notes.map(n=>`<div class="note"><small>${fmt(n.at)}</small>${n.tag?`<span class="tag">${esc(n.tag)}</span>`:''}${esc(n.text)}</div>`).join('')}
+      ${au}${txHtml}${s.notes.map(n=>`<div class="note"><small>${fmt(n.at)}</small>${n.tag?`<span class="tag">${esc(n.tag)}</span>`:''}${esc(n.text)}</div>`).join('')}
       <div class="row"><button class="btn gray" data-act="copy">複製文字</button><button class="btn org" data-act="resume">調出繼續記錄</button><button class="btn red" data-act="del">刪除</button></div></div>`;
     d.querySelector('[data-act=copy]').onclick=()=>navigator.clipboard.writeText(sessText(s)).then(()=>toast('已複製'));
+    const bt=d.querySelector('[data-act=tx]');if(bt)bt.onclick=()=>runTranscribe(s.id);
+    const bd=d.querySelector('[data-act=dl]');if(bd)bd.onclick=()=>dlReport(s);
+    const bc=d.querySelector('[data-act=cprep]');if(bc)bc.onclick=()=>navigator.clipboard.writeText(reportText(s)).then(()=>toast('已複製'));
     d.querySelector('[data-act=resume]').onclick=()=>resumeSession(s.id);
     d.querySelector('[data-act=del]').onclick=async()=>{if(confirm('確定刪除這場紀錄（含錄音）？')){await dbDel(s.id);renderLog()}};
     logList.appendChild(d)});
@@ -388,8 +460,8 @@ function buildPrompt(asJson){
   return '你是協助校長做教練式觀議課的顧問（台灣國小/國中）。請根據下面的教案，依「議課流程 4 步＋提問技巧 4 種」的工具卡架構，產出校長可直接使用、且高度細緻的內容。每張卡都必須具體對應這份教案的教學環節與活動（引用教案中的字句或活動名稱），不要套用通用範例句，同一句話不可跨卡重複。'+NL+fmt+NL+NL+'要產出的卡片：'+NL+items+NL+NL+(pType.value?'老師類型：'+(TYPEDESC[pType.value]||pType.value)+'（請依此類型調整語氣與議課破口）'+NL:'')+'班級／科目：'+(pGrade.value||'未填')+'　單元：'+(pTopic.value||'未填')+NL+'【教案內容】'+NL+pText.value}
 function copyPrompt(){if(!pText.value.trim())return alert('請先貼上教案');navigator.clipboard.writeText(buildPrompt(false)).then(()=>toast('已複製提示詞，可貼到任一 AI'))}
 const PV={gemini:'Gemini',openai:'ChatGPT',claude:'Claude'};
-function refreshKeyUI(){aiPri.value=localStorage.getItem('aiPri')||'gemini';keyStatus.textContent='已設定：'+(Object.keys(PV).filter(k=>localStorage.getItem('key_'+k)).map(k=>PV[k]).join('、')||'無')}
-function saveKeys(){[['gemini',kGemini],['openai',kOpenai],['claude',kClaude]].forEach(([k,el])=>{if(el.value.trim())localStorage.setItem('key_'+k,el.value.trim());el.value=''});localStorage.setItem('aiPri',aiPri.value);refreshKeyUI();toast('已儲存')}
+function refreshKeyUI(){aiPri.value=localStorage.getItem('aiPri')||'gemini';autoTxBox.checked=localStorage.getItem('autoTx')!=='0';keyStatus.textContent='已設定：'+(Object.keys(PV).filter(k=>localStorage.getItem('key_'+k)).map(k=>PV[k]).join('、')||'無')}
+function saveKeys(){[['gemini',kGemini],['openai',kOpenai],['claude',kClaude]].forEach(([k,el])=>{if(el.value.trim())localStorage.setItem('key_'+k,el.value.trim());el.value=''});localStorage.setItem('aiPri',aiPri.value);localStorage.setItem('autoTx',autoTxBox.checked?'1':'0');refreshKeyUI();toast('已儲存')}
 function clearKeys(){Object.keys(PV).forEach(k=>localStorage.removeItem('key_'+k));refreshKeyUI()}
 const AIcall={
  async gemini(key,prompt){const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});const j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||r.status);return j.candidates[0].content.parts.map(p=>p.text||'').join('')},
