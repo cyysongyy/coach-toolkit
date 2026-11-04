@@ -54,6 +54,8 @@ textarea{min-height:70px}
 .warn{background:#fff8e1;border:1px solid #f5d98a;border-radius:8px;padding:8px 10px;font-size:13px;margin:8px 0}
 h2{font-size:16px;margin:14px 0 6px;color:var(--pri)}
 audio{width:100%;margin:6px 0}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#111827;color:#fff;padding:8px 16px;border-radius:20px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:20}
+#toast.on{opacity:.95}
 .lesson{background:#f0f7ff;border:1px solid #b6d4f2;border-radius:10px;padding:10px;margin-top:12px}
 .lesson h4{color:var(--pri);font-size:14px;margin-bottom:4px}
 </style>
@@ -155,6 +157,7 @@ audio{width:100%;margin:6px 0}
   <div id="logList"></div>
 </section>
 </main>
+<div id="toast"></div>
 <nav>
   <button class="on" data-p="plan"><b>📝</b>教案</button>
   <button data-p="cards"><b>📚</b>工具卡</button>
@@ -279,6 +282,18 @@ const pad=n=>String(n).padStart(2,'0');
 const fmt=ms=>{const s=Math.floor(ms/1000);return pad(Math.floor(s/60))+':'+pad(s%60)};
 document.getElementById('quick').innerHTML=QUICK.map((q,i)=>`<button onclick="quick(${i})">${q[0]}</button>`).join('');
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+let toastT;
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),1800)}
+let asT;
+function autoSave(){
+  if(!S)return;
+  clearTimeout(asT);
+  asT=setTimeout(async()=>{
+    S.steps=[...document.querySelectorAll('#steps input:checked')].map(i=>+i.dataset.s);
+    S.durationMs=Date.now()-t0;S.draftText=noteText.value;S.draft=true;
+    await dbReady;await dbPut(S);
+  },300);
+}
 function startSession(){
   const n=(JSON.parse(localStorage.getItem('coachN')||'0'))+1;localStorage.setItem('coachN',n);const teacher=fTeacher.value.trim()||('場次 '+n);
   S={id:Date.now(),teacher,cls:fClass.value.trim(),ttype:fType.value,topic:fTopic.value.trim(),date:new Date().toISOString(),notes:[],steps:[],audio:null,audioMime:'',audioMs:0};
@@ -286,9 +301,9 @@ function startSession(){
   liveSetup.style.display='none';liveMain.style.display='block';
   liveTitle.textContent=`${S.teacher}　${S.cls}　${S.topic}　${S.ttype}`.trim();
   document.querySelectorAll('#steps input').forEach(i=>i.checked=false);
-  renderLive();
+  renderLive();autoSave();
 }
-function addNoteRaw(txt,tag){S.notes.push({at:Date.now()-t0,tag:tag||'',text:txt});renderLive()}
+function addNoteRaw(txt,tag){S.notes.push({at:Date.now()-t0,tag:tag||'',text:txt});renderLive();autoSave()}
 function quick(i){const t=QUICK[i];noteText.value=(t[1].endsWith('：')?t[1]:t[1]+' ');noteText.focus();noteText.dataset.tag=t[0]}
 function addNote(){const v=noteText.value.trim();if(!v)return;addNoteRaw(v,noteText.dataset.tag||'');noteText.value='';noteText.dataset.tag=''}
 function renderLive(){liveNotes.innerHTML=S.notes.slice().reverse().map(n=>`<div class="note"><small>${fmt(n.at)}</small>${n.tag?`<span class="tag">${esc(n.tag)}</span>`:''}${esc(n.text)}</div>`).join('')||'<small style="color:#9ca3af">尚無筆記</small>'}
@@ -302,6 +317,7 @@ async function toggleRec(){
     rec.onstop=()=>{stream.getTracks().forEach(t=>t.stop());clearInterval(timer);recDot.classList.remove('on');recBtn.textContent='● 錄音';
       S.audio=new Blob(chunks,{type:rec.mimeType||recMime});S.audioMime=S.audio.type;S.audioMs=Date.now()-recStart;
       addNoteRaw('錄音結束（'+fmt(S.audioMs)+'）','🎙')};
+    if(S.audio)toast('新錄音會取代這場原有的錄音');
     rec.start(1000);recStart=Date.now();recDot.classList.add('on');recBtn.textContent='■ 停止';
     timer=setInterval(()=>recTime.textContent=fmt(Date.now()-recStart),500);
     addNoteRaw('開始錄音','🎙');
@@ -311,11 +327,11 @@ async function finishSession(){
   if(rec&&rec.state==='recording'){rec.stop();await new Promise(r=>setTimeout(r,400))}
   addNote();
   S.steps=[...document.querySelectorAll('#steps input:checked')].map(i=>+i.dataset.s);
-  S.durationMs=Date.now()-t0;
-  await dbReady;await dbPut(S);resetLive();alert('已儲存到「紀錄」');
+  S.durationMs=Date.now()-t0;S.draft=false;S.draftText='';
+  clearTimeout(asT);await dbReady;await dbPut(S);resetLive();toast('已自動儲存到「紀錄」');
   document.querySelector('nav button[data-p=log]').click();
 }
-function cancelSession(){if(confirm('放棄本場記錄？')){if(rec&&rec.state==='recording')rec.stop();resetLive()}}
+function cancelSession(){if(confirm('放棄本場記錄？')){if(rec&&rec.state==='recording')rec.stop();const id=S&&S.id;clearTimeout(asT);resetLive();if(id)dbReady.then(()=>dbDel(id))}}
 function resetLive(){S=null;liveSetup.style.display='block';liveMain.style.display='none';recTime.textContent='00:00';fTeacher.value=fClass.value=fTopic.value=''}
 /* ============ 紀錄 ============ */
 const stepName={1:'接納',2:'探問',3:'鬆綁',4:'策略'};
@@ -329,11 +345,12 @@ async function renderLog(){
     const d=document.createElement('details');d.className='card';
     let au='';if(s.audio){const u=URL.createObjectURL(s.audio);objUrls.push(u);const ext=s.audioMime.includes('mp4')?'m4a':'webm';
       au=`<audio controls src="${u}"></audio><a class="btn gray" style="display:block;text-align:center;text-decoration:none;margin:4px 0" download="${esc(s.teacher)}_${s.id}.${ext}" href="${u}">⬇ 下載錄音</a>`}
-    d.innerHTML=`<summary>${esc(s.teacher)}　<small style="font-weight:400;color:#6b7280">${new Date(s.date).toLocaleDateString('zh-TW')} ${esc(s.cls)} ${esc(s.ttype||'')}</small></summary><div class="body">
+    d.innerHTML=`<summary>${esc(s.teacher)}　<small style="font-weight:400;color:#6b7280">${new Date(s.date).toLocaleDateString('zh-TW')} ${esc(s.cls)} ${esc(s.ttype||'')}${s.draft?' ‧ 進行中':''}</small></summary><div class="body">
       <p>${[1,2,3,4].map(x=>`<span class="tag" style="${s.steps.includes(x)?'background:#10b981;color:#fff':''}">${stepName[x]}</span>`).join('')}</p>
       ${au}${s.notes.map(n=>`<div class="note"><small>${fmt(n.at)}</small>${n.tag?`<span class="tag">${esc(n.tag)}</span>`:''}${esc(n.text)}</div>`).join('')}
-      <div class="row"><button class="btn gray" data-act="copy">複製文字</button><button class="btn red" data-act="del">刪除</button></div></div>`;
-    d.querySelector('[data-act=copy]').onclick=()=>navigator.clipboard.writeText(sessText(s)).then(()=>alert('已複製'));
+      <div class="row"><button class="btn gray" data-act="copy">複製文字</button><button class="btn org" data-act="resume">調出繼續記錄</button><button class="btn red" data-act="del">刪除</button></div></div>`;
+    d.querySelector('[data-act=copy]').onclick=()=>navigator.clipboard.writeText(sessText(s)).then(()=>toast('已複製'));
+    d.querySelector('[data-act=resume]').onclick=()=>resumeSession(s.id);
     d.querySelector('[data-act=del]').onclick=async()=>{if(confirm('確定刪除這場紀錄（含錄音）？')){await dbDel(s.id);renderLog()}};
     logList.appendChild(d)});
 }
@@ -361,10 +378,10 @@ function buildPrompt(asJson){
    ?'只輸出一個 JSON 陣列，不要 markdown、不要任何說明。每個項目格式 {"key":"下列key原樣","cat":"議課流程或提問技巧","title":"卡片標題","body":"卡片內容"}，依下列順序，每個項目一張卡，key、cat、title 照下列文字原樣使用。body 為繁體中文純文字，可直接口說，多行時用 JSON 跳脫字元 '+BS+'n 換行；建議用「▸」開頭條列，每題內含「問：」「預想學生回應：」「接續：」。'
    :'請依下列項目分段輸出，每段以【卡片標題】開頭，繁體中文，條列，每題內含「問：」「預想學生回應：」「接續：」。';
   return '你是協助校長做教練式觀議課的顧問（台灣國小/國中）。請根據下面的教案，依「議課流程 4 步＋提問技巧 3 種」的工具卡架構，產出校長可直接使用、且高度細緻的內容。每張卡都必須具體對應這份教案的教學環節與活動（引用教案中的字句或活動名稱），不要套用通用範例句，同一句話不可跨卡重複。'+NL+fmt+NL+NL+'要產出的卡片：'+NL+items+NL+NL+(pType.value?'老師類型：'+(TYPEDESC[pType.value]||pType.value)+'（請依此類型調整語氣與議課破口）'+NL:'')+'班級／科目：'+(pGrade.value||'未填')+'　單元：'+(pTopic.value||'未填')+NL+'【教案內容】'+NL+pText.value}
-function copyPrompt(){if(!pText.value.trim())return alert('請先貼上教案');navigator.clipboard.writeText(buildPrompt(false)).then(()=>alert('已複製提示詞，可貼到 Gemini / ChatGPT / Claude'))}
+function copyPrompt(){if(!pText.value.trim())return alert('請先貼上教案');navigator.clipboard.writeText(buildPrompt(false)).then(()=>toast('已複製提示詞，可貼到任一 AI'))}
 const PV={gemini:'Gemini',openai:'ChatGPT',claude:'Claude'};
 function refreshKeyUI(){aiPri.value=localStorage.getItem('aiPri')||'gemini';keyStatus.textContent='已設定：'+(Object.keys(PV).filter(k=>localStorage.getItem('key_'+k)).map(k=>PV[k]).join('、')||'無')}
-function saveKeys(){[['gemini',kGemini],['openai',kOpenai],['claude',kClaude]].forEach(([k,el])=>{if(el.value.trim())localStorage.setItem('key_'+k,el.value.trim());el.value=''});localStorage.setItem('aiPri',aiPri.value);refreshKeyUI();alert('已儲存在此手機')}
+function saveKeys(){[['gemini',kGemini],['openai',kOpenai],['claude',kClaude]].forEach(([k,el])=>{if(el.value.trim())localStorage.setItem('key_'+k,el.value.trim());el.value=''});localStorage.setItem('aiPri',aiPri.value);refreshKeyUI();toast('已儲存')}
 function clearKeys(){Object.keys(PV).forEach(k=>localStorage.removeItem('key_'+k));refreshKeyUI()}
 const AIcall={
  async gemini(key,prompt){const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});const j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||r.status);return j.candidates[0].content.parts.map(p=>p.text||'').join('')},
@@ -427,7 +444,7 @@ function showPlan(raw,who){
 function planToCard(){
   const tag='【'+((pGrade.value||'教案')+' '+(pTopic.value||'')).trim()+'】';
   planCards.forEach((c,i)=>MY.push({id:Date.now()+i,cat:c.cat,title:tag+c.title,body:c.body}));
-  localStorage.setItem('myCards',JSON.stringify(MY));alert('已存 '+planCards.length+' 張卡到「工具卡」對應分類');renderCards();
+  localStorage.setItem('myCards',JSON.stringify(MY));toast('已存 '+planCards.length+' 張卡');renderCards();
 }
 const TYPES=['OP','CO','FL','CL','CT','CH'];
 const TYPEDESC={OP:'開放型：願意嘗試、歡迎回饋，但想法多、不易收斂成原則',CO:'保守型：依賴既有流程、求穩，常有必須完美的信念',FL:'靈活型：臨場應變佳，但調整依據未說出、難以複製',CL:'閉鎖型：少分享、防衛心較強，宜先同頻接納',CT:'掌控型：照稿進行、怕失控、只點安全的學生',CH:'聊天型：重視關係、氣氛熱絡，但停在閒聊與經驗分享'};
@@ -456,6 +473,34 @@ async function cloudPull(){
 function saveCloud(){localStorage.setItem('gasUrl',gasUrl.value.trim());cloudMsg('同步中…');cloudPull()}
 function clearCloud(){localStorage.removeItem('gasUrl');gasUrl.value='';cloudMsg('已停用（本機教案庫不受影響）')}
 gasUrl.value=cl.url();if(cl.url())cloudMsg('☁️ 已啟用雲端同步');
+/* ===== 自動儲存：還原進行中的場次與教案草稿 ===== */
+function restoreLive(d){
+  S=d;t0=Date.now()-(S.durationMs||0);
+  liveSetup.style.display='none';liveMain.style.display='block';
+  liveTitle.textContent=`${S.teacher}　${S.cls}　${S.topic}　${S.ttype||''}`.trim();
+  document.querySelectorAll('#steps input').forEach(i=>i.checked=(S.steps||[]).includes(+i.dataset.s));
+  noteText.value=S.draftText||'';recTime.textContent='00:00';renderLive();
+}
+async function resumeSession(id){
+  await dbReady;
+  if(S){S.draft=false;S.durationMs=Date.now()-t0;await dbPut(S)}
+  const d=(await dbAll()).find(x=>x.id===id);if(!d)return;
+  d.draft=true;await dbPut(d);restoreLive(d);
+  document.querySelector('nav button[data-p=live]').click();toast('已調出，可繼續記錄與錄音');
+}
+(async()=>{
+  await dbReady;
+  const d=(await dbAll()).filter(x=>x.draft).sort((a,b)=>b.id-a.id)[0];
+  if(d&&!S){restoreLive(d);toast('已還原上次未結束的場次')}
+})();
+document.getElementById('steps').addEventListener('change',autoSave);
+noteText.addEventListener('input',autoSave);
+(function(){
+  const ids=['pGrade','pTopic','pText','pType'];
+  try{const dr=JSON.parse(localStorage.getItem('planDraft')||'{}');ids.forEach(i=>{if(dr[i]!=null)document.getElementById(i).value=dr[i]})}catch(e){}
+  const save=()=>{const o={};ids.forEach(i=>o[i]=document.getElementById(i).value);localStorage.setItem('planDraft',JSON.stringify(o))};
+  ids.forEach(i=>{document.getElementById(i).addEventListener('input',save);document.getElementById(i).addEventListener('change',save)});
+})();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)cloudPull()});
 renderCards();refreshKeyUI();renderLib();cloudPull();
 </script>
