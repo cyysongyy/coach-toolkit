@@ -183,32 +183,32 @@ const CARDS=[
 <div class="q">「現在老師重新把問題說一次…誰能用你的話告訴全班老師在問什麼？」</div>
 <p><b>機制：</b>給明確信號，停止瞎猜；核對全班理解，給「先安靜想一分鐘」的空間，再重新啟動討論。</p>
 <p><b>情境：</b>答非所問，或學生不假思索拋出第二、第三個答案（討好老師）時。</p>`},
-{cat:"老師類型",title:"掌控C（傳道授業）老師",src:SRC,html:`
+{cat:"老師類型",title:"CT",src:SRC,html:`
 <p><b>水面上：</b>照稿念、無視臨場回饋、只點舉手/「安全」的學生、教具過度繁複。</p>
 <p><b>水面下情緒：</b>極度焦慮、害怕失控、擔心「接不住」學生答案、怕在觀課者面前犯錯。</p>
 <p><b>底層信念：</b>「每件事都有一把嚴格的標尺」「失去節奏等於教學失敗」「學生沒講出標準答案＝我沒教好」</p>
 <p><b>議課破口（看見課堂外延伸）：</b></p>
 <div class="q">「有哪些情境需要孩子自律，但並未發生？我們如何容許彈性？」</div>`},
-{cat:"老師類型",title:"聊天C（連結交流）老師",src:SRC,html:`
+{cat:"老師類型",title:"CH",src:SRC,html:`
 <p><b>特徵：</b>重視關係、氣氛熱絡，但停在閒聊與經驗分享，未提煉出未來可遵循的「思考原則」。</p>
 <p><b>議課破口（提取原則）：</b></p>
 <div class="q">「在經驗交流後，你如何幫助孩子提取未來可遵循的思考方向？」</div>`},
-{cat:"老師類型",title:"開放O老師",src:"Claude 依議課情境整理（可自行修改）",html:`
+{cat:"老師類型",title:"OP",src:"Claude 依議課情境整理（可自行修改）",html:`
 <p><b>特徵：</b>願意嘗試新做法、歡迎回饋，課堂氣氛活絡。</p>
 <p><b>風險：</b>想法多但發散，不易收斂成原則。</p>
 <p><b>議課破口：</b></p>
 <div class="q">「這些嘗試中，哪一個你想留下來，變成下次一定會做的原則？為什麼？」</div>`},
-{cat:"老師類型",title:"保守C老師",src:"Claude 依議課情境整理（可自行修改）",html:`
+{cat:"老師類型",title:"CO",src:"Claude 依議課情境整理（可自行修改）",html:`
 <p><b>特徵：</b>依賴既有流程與教材，求穩、怕出錯，不輕易改變。</p>
 <p><b>風險：</b>流程完整但缺少臨場互動，常有「必須完美」的信念。</p>
 <p><b>議課破口（小步調整）：</b></p>
 <div class="q">「如果只改變一個小地方，你覺得改哪裡最安全、又最有可能讓學生多說一點？」</div>`},
-{cat:"老師類型",title:"靈活F老師",src:"Claude 依議課情境整理（可自行修改）",html:`
+{cat:"老師類型",title:"FL",src:"Claude 依議課情境整理（可自行修改）",html:`
 <p><b>特徵：</b>臨場應變佳，能順著學生反應調整節奏。</p>
 <p><b>風險：</b>靈活但主軸容易飄，調整的依據沒被說出來，難以複製。</p>
 <p><b>議課破口（說出依據）：</b></p>
 <div class="q">「剛才你臨時調整的那一刻，你看到了什麼、依據什麼決定？下次如何有意識地再做一次？」</div>`},
-{cat:"老師類型",title:"閉鎖C老師",src:"Claude 依議課情境整理（可自行修改）",html:`
+{cat:"老師類型",title:"CL",src:"Claude 依議課情境整理（可自行修改）",html:`
 <p><b>特徵：</b>少分享、少回應、防衛心較強，對觀課與議課有戒心。</p>
 <p><b>做法：</b>先做第①步同頻接納，降低威脅感；用安全、小範圍的問題開場，不急著探恐懼或給策略。</p>
 <p><b>議課破口：</b></p>
@@ -341,7 +341,7 @@ function buildPrompt(asJson){
   const fmt=asJson
    ?'只輸出一個 JSON 陣列，不要 markdown、不要任何說明。每個項目格式 {"cat":"議課流程或提問技巧","title":"卡片標題","body":"卡片內容"}，依下列順序，每個項目一張卡，cat 與 title 照下列文字原樣使用。body 為繁體中文純文字、簡潔、可直接口說，多行時用 JSON 跳脫字元 '+BS+'n 換行。'
    :'請依下列項目分段輸出，每段以【卡片標題】開頭，繁體中文、條列、簡潔、可直接口說。';
-  return '你是協助校長做教練式觀議課的顧問（台灣國小/國中）。請根據下面的教案，依「議課流程 4 步＋提問技巧 3 種」的工具卡架構，產出校長可直接使用的內容，每張卡都必須具體對應這份教案，不要只套範例句。'+NL+fmt+NL+NL+'要產出的卡片：'+NL+items+NL+NL+(pType.value?'老師類型：'+pType.value+'（請依此類型調整語氣與議課破口）'+NL:'')+'班級／科目：'+(pGrade.value||'未填')+'　單元：'+(pTopic.value||'未填')+NL+'【教案內容】'+NL+pText.value}
+  return '你是協助校長做教練式觀議課的顧問（台灣國小/國中）。請根據下面的教案，依「議課流程 4 步＋提問技巧 3 種」的工具卡架構，產出校長可直接使用的內容，每張卡都必須具體對應這份教案，不要只套範例句。'+NL+fmt+NL+NL+'要產出的卡片：'+NL+items+NL+NL+(pType.value?'老師類型：'+(TYPEDESC[pType.value]||pType.value)+'（請依此類型調整語氣與議課破口）'+NL:'')+'班級／科目：'+(pGrade.value||'未填')+'　單元：'+(pTopic.value||'未填')+NL+'【教案內容】'+NL+pText.value}
 function copyPrompt(){if(!pText.value.trim())return alert('請先貼上教案');navigator.clipboard.writeText(buildPrompt(false)).then(()=>alert('已複製提示詞，可貼到 Gemini / ChatGPT / Claude'))}
 const PV={gemini:'Gemini',openai:'ChatGPT',claude:'Claude'};
 function refreshKeyUI(){aiPri.value=localStorage.getItem('aiPri')||'gemini';keyStatus.textContent='已設定：'+(Object.keys(PV).filter(k=>localStorage.getItem('key_'+k)).map(k=>PV[k]).join('、')||'無')}
@@ -384,7 +384,8 @@ function planToCard(){
   planCards.forEach((c,i)=>MY.push({id:Date.now()+i,cat:c.cat,title:tag+c.title,body:c.body}));
   localStorage.setItem('myCards',JSON.stringify(MY));alert('已存 '+planCards.length+' 張卡到「工具卡」對應分類');renderCards();
 }
-const TYPES=['開放O','保守C','靈活F','閉鎖C','掌控C','聊天C'];
+const TYPES=['OP','CO','FL','CL','CT','CH'];
+const TYPEDESC={OP:'開放型：願意嘗試、歡迎回饋，但想法多、不易收斂成原則',CO:'保守型：依賴既有流程、求穩，常有必須完美的信念',FL:'靈活型：臨場應變佳，但調整依據未說出、難以複製',CL:'閉鎖型：少分享、防衛心較強，宜先同頻接納',CT:'掌控型：照稿進行、怕失控、只點安全的學生',CH:'聊天型：重視關係、氣氛熱絡，但停在閒聊與經驗分享'};
 [fType,pType].forEach(el=>el.innerHTML='<option value="">老師類型：未選</option>'+TYPES.map(t=>'<option>'+t+'</option>').join(''));
 renderCards();refreshKeyUI();
 </script>
