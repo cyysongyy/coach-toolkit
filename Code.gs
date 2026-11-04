@@ -1,7 +1,6 @@
 // 校長 Coach 工具箱｜教案雲端備份（Google Apps Script）
-// 用法：開啟一份 Google 試算表 → 擴充功能 → Apps Script → 貼上本檔 → 把 TOKEN 改成自訂密碼
+// 用法：開啟一份 Google 試算表 → 擴充功能 → Apps Script → 貼上本檔
 // → 部署 → 新增部署作業 → 類型：網頁應用程式 → 執行身分：我 → 存取：所有人 → 複製網址貼到工具箱的雲端同步設定
-const TOKEN = '請改成你自己的密碼';
 const SHEET = 'lessons';
 
 function sheet_() {
@@ -14,7 +13,6 @@ function out_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 function doGet(e) {
-  if (!e.parameter || e.parameter.token !== TOKEN) return out_({ ok: false, error: '密碼錯誤' });
   const rows = sheet_().getDataRange().getValues().slice(1);
   const items = rows.map(function (r) { try { return JSON.parse(r[3]); } catch (x) { return null; } })
                     .filter(function (x) { return x; });
@@ -25,7 +23,6 @@ function doPost(e) {
   lock.waitLock(20000);
   try {
     const b = JSON.parse(e.postData.contents);
-    if (b.token !== TOKEN) return out_({ ok: false, error: '密碼錯誤' });
     const s = sheet_();
     const ids = s.getRange(1, 1, Math.max(s.getLastRow(), 1), 1).getValues().map(function (r) { return String(r[0]); });
     if (b.action === 'save') {
