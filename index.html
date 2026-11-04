@@ -131,6 +131,13 @@ audio{width:100%;margin:6px 0}
   <div class="row"><button class="btn gray" id="pSave" style="display:none" onclick="planToCard()">另存為永久卡片</button></div>
   <h2>📂 已存教案（隨時調出，只存在此手機）</h2>
   <div id="libList"></div>
+  <details class="card" style="margin-top:12px"><summary>☁️ 雲端同步（Google Apps Script，選填）</summary><div class="body">
+    <p>教案庫可備份到你自己的 Google 試算表，換手機或瀏覽器都能調出。只同步教案與 AI 產生的卡片，不含筆記與錄音。</p>
+    <input autocomplete="off" id="gasUrl" placeholder="Apps Script 網頁應用程式網址">
+    <input autocomplete="off" id="gasTok" type="password" placeholder="密碼（同 Code.gs 的 TOKEN）" style="margin-top:8px">
+    <div class="row"><button class="btn" onclick="saveCloud()">儲存並同步</button><button class="btn gray" onclick="clearCloud()">停用</button></div>
+    <p class="src" id="cloudStatus"></p>
+  </div></details>
   <details class="card" style="margin-top:12px"><summary>⚙️ AI 設定（選填，金鑰只存在此手機）</summary><div class="body">
     <p>填任一個金鑰即可一鍵產生；多個都填時，依下方優先順序自動備援。不設定也能用「複製提示詞」。</p>
     <select id="aiPri"><option value="gemini">優先：Gemini</option><option value="openai">優先：ChatGPT</option><option value="claude">優先：Claude</option></select>
@@ -396,9 +403,10 @@ function drawPlan(msg){
   pOut.innerHTML='<div class="warn">✅ '+msg+'已套用到「📚 工具卡」：議課流程與提問技巧卡片會顯示本教案內容。</div>'+h;pSave.style.display='block';
 }
 function saveLib(name,cards){
+  LIB.filter(e=>e.name===name).forEach(e=>cloudDel(e.id));
   LIB=LIB.filter(e=>e.name!==name);
   LIB.unshift({id:Date.now(),name,date:new Date().toISOString(),form:{grade:pGrade.value,topic:pTopic.value,text:pText.value,type:pType.value},cards});
-  LIB=LIB.slice(0,30);localStorage.setItem('lessonLib',JSON.stringify(LIB));renderLib();
+  LIB=LIB.slice(0,30);localStorage.setItem('lessonLib',JSON.stringify(LIB));renderLib();cloudPush(LIB[0]);
 }
 function renderLib(){
   libList.innerHTML=LIB.length?LIB.map(e=>'<div class="note" style="display:flex;gap:6px;align-items:center"><div style="flex:1"><b>'+esc(e.name)+'</b><br><small>'+new Date(e.date).toLocaleString('zh-TW')+'</small></div><button class="btn" style="padding:8px 12px;font-size:14px" onclick="loadLesson('+e.id+')">調出</button><button class="btn gray" style="padding:8px 12px;font-size:14px" onclick="delLesson('+e.id+')">刪除</button></div>').join(''):'<small style="color:#9ca3af">尚無已存教案，產生後會自動儲存在這裡</small>';
@@ -408,7 +416,7 @@ function loadLesson(id){
   pGrade.value=e.form.grade||'';pTopic.value=e.form.topic||'';pText.value=e.form.text||'';pType.value=e.form.type||'';
   applyCards(e.name,e.cards);drawPlan('已調出「'+esc(e.name)+'」，');window.scrollTo(0,0);
 }
-function delLesson(id){if(confirm('刪除這份已存教案？')){LIB=LIB.filter(x=>x.id!==id);localStorage.setItem('lessonLib',JSON.stringify(LIB));renderLib()}}
+function delLesson(id){if(confirm('刪除這份已存教案？')){cloudDel(id);LIB=LIB.filter(x=>x.id!==id);localStorage.setItem('lessonLib',JSON.stringify(LIB));renderLib()}}
 function showPlan(raw,who){
   planCards=[];
   try{const m=raw.match(/\[[\s\S]*\]/);let a;try{a=JSON.parse(m[0])}catch(e2){a=JSON.parse(m[0].replace(/[\u0000-\u001f]+/g,' '))}planCards=a.filter(c=>c&&c.title&&c.body).map(c=>({key:c.key||guessKey(c.title),cat:c.cat==='提問技巧'?'提問技巧':'議課流程',title:String(c.title),body:String(c.body)}))}catch(e){}
@@ -425,7 +433,31 @@ function planToCard(){
 const TYPES=['OP','CO','FL','CL','CT','CH'];
 const TYPEDESC={OP:'開放型：願意嘗試、歡迎回饋，但想法多、不易收斂成原則',CO:'保守型：依賴既有流程、求穩，常有必須完美的信念',FL:'靈活型：臨場應變佳，但調整依據未說出、難以複製',CL:'閉鎖型：少分享、防衛心較強，宜先同頻接納',CT:'掌控型：照稿進行、怕失控、只點安全的學生',CH:'聊天型：重視關係、氣氛熱絡，但停在閒聊與經驗分享'};
 [fType,pType].forEach(el=>el.innerHTML='<option value="">老師類型：未選</option>'+TYPES.map(t=>'<option>'+t+'</option>').join(''));
-renderCards();refreshKeyUI();renderLib();
+/* ===== 雲端同步（GAS） ===== */
+const cl={url:()=>localStorage.getItem('gasUrl')||'',tok:()=>localStorage.getItem('gasTok')||''};
+function cloudMsg(t){if(window.cloudStatus)cloudStatus.textContent=t}
+async function cloudPost(body){
+  const r=await fetch(cl.url(),{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:cl.tok(),...body})});
+  const j=await r.json();if(!j.ok)throw new Error(j.error||'失敗');return j;
+}
+function cloudPush(e){if(cl.url())cloudPost({action:'save',entry:e}).then(()=>cloudMsg('☁️ 已同步 '+new Date().toLocaleTimeString('zh-TW'))).catch(x=>cloudMsg('☁️ 同步失敗：'+x.message))}
+function cloudDel(id){if(cl.url())cloudPost({action:'delete',id}).catch(x=>cloudMsg('☁️ 刪除同步失敗：'+x.message))}
+async function cloudPull(){
+  if(!cl.url())return;
+  try{
+    const r=await fetch(cl.url()+'?token='+encodeURIComponent(cl.tok()));const j=await r.json();if(!j.ok)throw new Error(j.error||'失敗');
+    const all=[...LIB,...j.items],byName={};
+    all.forEach(e=>{if(!byName[e.name]||new Date(e.date)>new Date(byName[e.name].date))byName[e.name]=e});
+    LIB=Object.values(byName).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,30);
+    localStorage.setItem('lessonLib',JSON.stringify(LIB));renderLib();
+    const cloudNames=new Set(j.items.map(e=>e.id));LIB.forEach(e=>{if(!cloudNames.has(e.id))cloudPush(e)});
+    cloudMsg('☁️ 已同步，共 '+LIB.length+' 份（'+new Date().toLocaleTimeString('zh-TW')+'）');
+  }catch(x){cloudMsg('☁️ 同步失敗：'+x.message)}
+}
+function saveCloud(){localStorage.setItem('gasUrl',gasUrl.value.trim());if(gasTok.value)localStorage.setItem('gasTok',gasTok.value);gasTok.value='';cloudMsg('同步中…');cloudPull()}
+function clearCloud(){localStorage.removeItem('gasUrl');localStorage.removeItem('gasTok');gasUrl.value='';cloudMsg('已停用（本機教案庫不受影響）')}
+gasUrl.value=cl.url();if(cl.url())cloudMsg('☁️ 已啟用雲端同步');
+renderCards();refreshKeyUI();renderLib();cloudPull();
 </script>
 </body>
 </html>
