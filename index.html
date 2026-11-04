@@ -60,7 +60,7 @@ audio{width:100%;margin:6px 0}
 <header><h1>🧭 校長 Coach 工具箱</h1></header>
 <main>
 <!-- 工具卡 -->
-<section class="page on" id="p-cards">
+<section class="page" id="p-cards">
   <div class="chips" id="cats"></div>
   <div id="cardList"></div>
   <button class="btn org" style="width:100%;margin-top:8px" onclick="document.getElementById('addBox').style.display='block';this.style.display='none'">＋ 新增我的卡片</button>
@@ -105,7 +105,7 @@ audio{width:100%;margin:6px 0}
 </section>
 
 <!-- 教案 -->
-<section class="page" id="p-plan">
+<section class="page on" id="p-plan">
   <div class="warn">📝 貼上教案（班級可填，但不要放學生或老師姓名），系統會依教案內容產生不同深度的 SEL 三問（追問／反問／重問）。</div>
   <a class="btn" style="display:block;text-align:center;text-decoration:none;margin:8px 0" target="_blank" rel="noopener" href="https://drive.google.com/drive/u/0/folders/1QIaM3Clcp-tBEwvhzhFo78jtBMvXosAZ">📂 開啟教案資料夾（Google Drive）</a>
   <select id="pType" style="margin-bottom:8px"></select>
@@ -122,11 +122,11 @@ audio{width:100%;margin:6px 0}
     <label style="flex:1 1 30%"><input type="checkbox" value="redirecting" checked><span>重問</span></label>
   </div>
   <div class="row">
-    <button class="btn org" id="pGo" onclick="genPlan()">✨ 產生提問</button>
+    <button class="btn org" id="pGo" onclick="genPlan()">✨ 依教案產生工具卡</button>
     <button class="btn gray" onclick="copyPrompt()">複製提示詞（貼到任一 AI）</button>
   </div>
   <div id="pOut"></div>
-  <div class="row"><button class="btn gray" id="pSave" style="display:none" onclick="planToCard()">存成「我的卡片」</button></div>
+  <div class="row"><button class="btn gray" id="pSave" style="display:none" onclick="planToCard()">全部存進工具卡</button></div>
   <details class="card" style="margin-top:12px"><summary>⚙️ AI 設定（選填，金鑰只存在此手機）</summary><div class="body">
     <p>填任一個金鑰即可一鍵產生；多個都填時，依下方優先順序自動備援。不設定也能用「複製提示詞」。</p>
     <select id="aiPri"><option value="gemini">優先：Gemini</option><option value="openai">優先：ChatGPT</option><option value="claude">優先：Claude</option></select>
@@ -146,9 +146,9 @@ audio{width:100%;margin:6px 0}
 </section>
 </main>
 <nav>
-  <button class="on" data-p="cards"><b>📚</b>工具卡</button>
+  <button class="on" data-p="plan"><b>📝</b>教案</button>
+  <button data-p="cards"><b>📚</b>工具卡</button>
   <button data-p="live"><b>🎙</b>現場</button>
-  <button data-p="plan"><b>📝</b>教案</button>
   <button data-p="log"><b>🗂</b>紀錄</button>
 </nav>
 
@@ -325,30 +325,24 @@ async function exportAll(){
 }
 /* ============ 教案 → 提問深化 ============ */
 let lastPlan='';
-function buildPrompt(){
+const PARTS={
+ validate:['議課流程','①同頻接納 Validate','依教案可看見的用心之處，寫 2–3 句校長可直接說的肯定話（具體指出教案中的設計），接住老師內在擔憂。'],
+ uncover:['議課流程','②探問恐懼 Uncover','推測這份教案背後老師可能害怕的情況（如怕學生答不出、怕失控、怕沒有標準答案），給 2 個校長可問的探問句，風格如「在剛才的對話中，你最擔心發生什麼事？」。'],
+ reframe:['議課流程','③鬆綁信念 Reframe','推測老師可能的限制型信念（如「沒講出標準答案＝我沒教好」），給一段鬆綁的話，風格如「教育現場本就無法套用單一標準，我們不求完美的流程，而是陪伴思考」。'],
+ equip:['議課流程','④提供策略 Equip','總結這份教案的各教學環節各適合用追問、反問或重問中的哪一種，以及建議的使用順序，提醒心態放鬆後才帶入技巧。'],
+ probing:['提問技巧','追問 Probing','挖掘敘事脈絡。針對教案的教學環節，給 2–3 個具體可問的句子（教案原本的問題→升級後的追問），並預想學生會出現的簡答或跳躍結論；風格如「我很好奇，你是怎麼一步步想到的？」。'],
+ countering:['提問技巧','反問 Countering','擴充認知視野。針對教案的教學環節，給 2–3 個具體可問的句子，並預想學生會出現的絕對化或單一視角答案；風格如「永遠都是這樣嗎？有沒有什麼時候是例外？」。'],
+ redirecting:['提問技巧','重問 Redirecting','校準理解偏差。針對教案的教學環節，給 2–3 個具體可問的句子，並預想學生答非所問或瞎猜標準答案的情況；風格如「請用你的話重述一次問題」＋靜思一分鐘。']
+};
+function buildPrompt(asJson){
   const on=[...document.querySelectorAll('#pParts input:checked')].map(i=>i.value);
-  const has=k=>on.includes(k);const NL=String.fromCharCode(10);
-  const flow=[];
-  if(has('validate'))flow.push('【①同頻接納 Validate】依教案可看見的用心之處，寫 2–3 句校長可直接說的肯定話（具體指出教案中的設計），接住老師內在擔憂。');
-  if(has('uncover'))flow.push('【②探問恐懼 Uncover】推測這份教案背後老師可能害怕的情況（例：怕學生答不出、怕失控、怕沒有標準答案），並給 2 個校長可問的探問句，例「在剛才的對話中，你最擔心發生什麼事？」。');
-  if(has('reframe'))flow.push('【③鬆綁信念 Reframe】推測老師可能的限制型信念（如「沒講出標準答案＝我沒教好」），並給一段鬆綁的話，例「教育現場本就無法套用單一標準，我們不求完美的流程，而是陪伴思考」。');
-  if(has('equip')||has('probing')||has('countering')||has('redirecting')){
-    const qs=[];
-    if(has('probing'))qs.push('追問(Probing)：挖掘敘事脈絡，補齊思考過程。例「我很好奇，你是怎麼一步步想到的？」。適用：簡答、跳躍結論、答案出乎意料。');
-    if(has('countering'))qs.push('反問(Countering)：擴充認知視野，打破單一視角。例「永遠都是這樣嗎？有沒有什麼時候是例外？」。適用：絕對化答案、視角單一。');
-    if(has('redirecting'))qs.push('重問(Redirecting)：校準理解偏差，停止瞎猜標準答案。例「請用你的話重述一次問題」＋靜思一分鐘。適用：答非所問、瘋狂拋答案討好老師。');
-    flow.push('【④提供策略 Equip】針對教案的每個主要教學環節，列出「教案原本的提問 → 可升級的提問」，並預想學生可能的回應與該用哪一問：'+NL+qs.join(NL)+NL+'每個環節請依教案內容各給具體問句，不要只套範例句。');
-  }
-  return `你是協助校長做教練式觀議課的顧問（台灣國小/國中）。請根據下面的教案，依「教練式議課四步對話法＋三種提問」的架構，產出校長可直接使用的 coach 稿。
-先用 2 句話說明這份教案的教學重點，再依序輸出以下項目（繁體中文、條列、簡潔、可直接口說）：
-
-${flow.join(NL+NL)}
-
-${pType.value?'老師類型：'+pType.value+'（請依此類型調整語氣與議課破口）':''}
-班級／科目：${pGrade.value||'未填'}　單元：${pTopic.value||'未填'}
-【教案內容】
-${pText.value}`}
-function copyPrompt(){if(!pText.value.trim())return alert('請先貼上教案');navigator.clipboard.writeText(buildPrompt()).then(()=>alert('已複製提示詞，可貼到 Gemini / ChatGPT / Claude'))}
+  const NL=String.fromCharCode(10),BS=String.fromCharCode(92);
+  const items=on.map(k=>'- 【'+PARTS[k][0]+'】'+PARTS[k][1]+'：'+PARTS[k][2]).join(NL);
+  const fmt=asJson
+   ?'只輸出一個 JSON 陣列，不要 markdown、不要任何說明。每個項目格式 {"cat":"議課流程或提問技巧","title":"卡片標題","body":"卡片內容"}，依下列順序，每個項目一張卡，cat 與 title 照下列文字原樣使用。body 為繁體中文純文字、簡潔、可直接口說，多行時用 JSON 跳脫字元 '+BS+'n 換行。'
+   :'請依下列項目分段輸出，每段以【卡片標題】開頭，繁體中文、條列、簡潔、可直接口說。';
+  return '你是協助校長做教練式觀議課的顧問（台灣國小/國中）。請根據下面的教案，依「議課流程 4 步＋提問技巧 3 種」的工具卡架構，產出校長可直接使用的內容，每張卡都必須具體對應這份教案，不要只套範例句。'+NL+fmt+NL+NL+'要產出的卡片：'+NL+items+NL+NL+(pType.value?'老師類型：'+pType.value+'（請依此類型調整語氣與議課破口）'+NL:'')+'班級／科目：'+(pGrade.value||'未填')+'　單元：'+(pTopic.value||'未填')+NL+'【教案內容】'+NL+pText.value}
+function copyPrompt(){if(!pText.value.trim())return alert('請先貼上教案');navigator.clipboard.writeText(buildPrompt(false)).then(()=>alert('已複製提示詞，可貼到 Gemini / ChatGPT / Claude'))}
 const PV={gemini:'Gemini',openai:'ChatGPT',claude:'Claude'};
 function refreshKeyUI(){aiPri.value=localStorage.getItem('aiPri')||'gemini';keyStatus.textContent='已設定：'+(Object.keys(PV).filter(k=>localStorage.getItem('key_'+k)).map(k=>PV[k]).join('、')||'無')}
 function saveKeys(){[['gemini',kGemini],['openai',kOpenai],['claude',kClaude]].forEach(([k,el])=>{if(el.value.trim())localStorage.setItem('key_'+k,el.value.trim());el.value=''});localStorage.setItem('aiPri',aiPri.value);refreshKeyUI();alert('已儲存在此手機')}
@@ -368,16 +362,27 @@ async function genPlan(){
   const errs=[];
   for(const k of order){
     try{
-      lastPlan=await AIcall[k](localStorage.getItem('key_'+k),buildPrompt());
-      pOut.innerHTML='<div class="card"><div class="body" style="padding-top:12px">'+mdLite(lastPlan)+'<div class="src">由 '+PV[k]+' 產生</div></div></div>';pSave.style.display='block';errs.length=0;break;
+      const raw=await AIcall[k](localStorage.getItem('key_'+k),buildPrompt(true));
+      showPlan(raw,PV[k]);errs.length=0;break;
     }catch(e){errs.push(PV[k]+'：'+e.message)}
   }
   if(errs.length)pOut.innerHTML='<div class="warn">產生失敗<br>'+errs.map(esc).join('<br>')+'<br>可改用「複製提示詞」。</div>';
-  pGo.disabled=false;pGo.textContent='✨ 產生提問';
+  pGo.disabled=false;pGo.textContent='✨ 依教案產生工具卡';
+}
+let planCards=[];
+function showPlan(raw,who){
+  planCards=[];
+  try{const m=raw.match(/\[[\s\S]*\]/);let a;try{a=JSON.parse(m[0])}catch(e2){a=JSON.parse(m[0].replace(/[\u0000-\u001f]+/g,' '))}planCards=a.filter(c=>c&&c.title&&c.body).map(c=>({cat:c.cat==='提問技巧'?'提問技巧':'議課流程',title:String(c.title),body:String(c.body)}))}catch(e){}
+  if(!planCards.length)planCards=[{cat:'議課流程',title:'教案 coach 稿',body:raw}];
+  let h='',last='';
+  planCards.forEach((c,i)=>{if(c.cat!==last){h+='<h2>'+esc(c.cat)+'</h2>';last=c.cat}
+    h+='<details class="card" '+(i===0?'open':'')+'><summary>'+esc(c.title)+'</summary><div class="body">'+mdLite(c.body)+'</div></details>'});
+  pOut.innerHTML=h+'<div class="src">依教案由 '+who+' 產生（架構同工具卡）</div>';pSave.style.display='block';
 }
 function planToCard(){
-  MY.push({id:Date.now(),cat:'教案提問',title:(pGrade.value||'教案')+' '+(pTopic.value||'')+' 提問升級',body:lastPlan});
-  localStorage.setItem('myCards',JSON.stringify(MY));alert('已存到「工具卡 → 教案提問」');renderCards();
+  const tag='【'+((pGrade.value||'教案')+' '+(pTopic.value||'')).trim()+'】';
+  planCards.forEach((c,i)=>MY.push({id:Date.now()+i,cat:c.cat,title:tag+c.title,body:c.body}));
+  localStorage.setItem('myCards',JSON.stringify(MY));alert('已存 '+planCards.length+' 張卡到「工具卡」對應分類');renderCards();
 }
 const TYPES=['開放型','保守型','靈活型','閉鎖型','掌控型','聊天型'];
 [fType,pType].forEach(el=>el.innerHTML='<option value="">老師類型：未選</option>'+TYPES.map(t=>'<option>'+t+'</option>').join(''));
