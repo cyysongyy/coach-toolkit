@@ -110,20 +110,21 @@ audio{width:100%;margin:6px 0}
 
 <!-- 教案 -->
 <section class="page on" id="p-plan">
-  <div class="warn">📝 貼上教案（班級可填，但不要放學生或老師姓名），系統會依教案內容產生不同深度的 SEL 三問（追問／反問／重問）。</div>
+  <div class="warn">📝 貼上教案（班級可填，但不要放學生或老師姓名），系統會依教案內容產生不同深度的 SEL 四問（追問／反問／重問／結問）。</div>
   <a class="btn" style="display:block;text-align:center;text-decoration:none;margin:8px 0" target="_blank" rel="noopener" href="https://drive.google.com/drive/u/0/folders/1QIaM3Clcp-tBEwvhzhFo78jtBMvXosAZ">📂 開啟教案資料夾（Google Drive）</a>
   <select id="pType" style="margin-bottom:8px"></select>
   <div class="row"><input autocomplete="off" id="pGrade" placeholder="班級／科目（班級可填）"><input autocomplete="off" id="pTopic" placeholder="單元（選填）"></div>
   <textarea autocomplete="off" id="pText" placeholder="貼上或輸入教案內容：教學目標、教學流程、活動設計、提問…" style="min-height:180px"></textarea>
-  <h2>產出架構（取自「工具卡」：議課流程 4 步 ＋ 提問 3 種）</h2>
+  <h2>產出架構（取自「工具卡」：議課流程 4 步 ＋ 提問 4 種）</h2>
   <div class="steps" style="flex-wrap:wrap" id="pParts">
     <label style="flex:1 1 22%"><input type="checkbox" value="validate" checked><span>①同頻接納</span></label>
     <label style="flex:1 1 22%"><input type="checkbox" value="uncover" checked><span>②探問恐懼</span></label>
     <label style="flex:1 1 22%"><input type="checkbox" value="reframe" checked><span>③鬆綁信念</span></label>
     <label style="flex:1 1 22%"><input type="checkbox" value="equip" checked><span>④提供策略</span></label>
-    <label style="flex:1 1 30%"><input type="checkbox" value="probing" checked><span>追問</span></label>
-    <label style="flex:1 1 30%"><input type="checkbox" value="countering" checked><span>反問</span></label>
-    <label style="flex:1 1 30%"><input type="checkbox" value="redirecting" checked><span>重問</span></label>
+    <label style="flex:1 1 22%"><input type="checkbox" value="probing" checked><span>追問</span></label>
+    <label style="flex:1 1 22%"><input type="checkbox" value="countering" checked><span>反問</span></label>
+    <label style="flex:1 1 22%"><input type="checkbox" value="redirecting" checked><span>重問</span></label>
+    <label style="flex:1 1 22%"><input type="checkbox" value="closing" checked><span>結問</span></label>
   </div>
   <div class="row">
     <button class="btn org" id="pGo" onclick="genPlan()">✨ 依教案產生工具卡</button>
@@ -177,13 +178,13 @@ const CARDS=[
 <div class="q">「在剛才的對話中，你最擔心發生什麼事？」</div>
 <p><span class="tag">③鬆綁信念</span>覺察「標準答案」的尺</p>
 <div class="q">「教育現場本就無法套用單一標準，我們不求完美的流程，而是陪伴思考。」</div>
-<p><span class="tag">④提供策略</span>心態放鬆、焦慮釋放後，才帶入具體技巧（SEL 三問）</p>
+<p><span class="tag">④提供策略</span>心態放鬆、焦慮釋放後，才帶入具體技巧（SEL 四問）</p>
 <p><b>為什麼不直接給策略？</b>老師仍受「必須完美」的恐懼卡關。案例：請老師做直覺選字 Check-in，老師第一時間是查手機找標準答案。技巧的匱乏，往往源於心態的恐懼。</p>`},
-{cat:"提問技巧",title:"SEL 三問決策卡：何時用哪一問",src:SRC,html:`
+{cat:"提問技巧",title:"SEL 四問決策卡：何時用哪一問",src:SRC,html:`
 <table><tr><th>學生狀況</th><th>診斷</th><th>策略</th></tr>
 <tr><td>簡答、跳躍結論、答案出乎意料</td><td>缺思考脈絡</td><td><b>追問</b>「我很好奇，你是怎麼一步步想到的？」</td></tr>
 <tr><td>答案絕對化、視角單一</td><td>認知侷限</td><td><b>反問</b>「永遠都是這樣嗎？有沒有什麼時候是例外？」</td></tr>
-<tr><td>瘋狂拋答案、答非所問</td><td>瞎猜標準答案</td><td><b>重問</b>「請用你的話，告訴全班老師在問什麼？」＋靜思一分鐘</td></tr></table>`},
+<tr><td>瘋狂拋答案、答非所問</td><td>瞎猜標準答案</td><td><b>重問</b>「請用你的話，告訴全班老師在問什麼？」＋靜思一分鐘</td></tr><tr><td>對話即將結束、尚未整理收穫</td><td>缺少統整與再理解</td><td><b>結問</b>「結束前，請用一句話說說：剛才這段對話，你有什麼新的理解？」</td></tr></table>`},
 {key:"probing",cat:"提問技巧",title:"追問 Probing — 挖掘敘事脈絡",src:SRC,html:`
 <div class="q">「我很好奇…你是怎麼一步步想到這個結果的？」</div>
 <p><b>機制：</b>孩子常直接跳到結論。「我很好奇」帶有魔力，幫孩子把未說完的脈絡講清楚，也為老師爭取思考空間，無需立刻評價。</p>
@@ -196,6 +197,11 @@ const CARDS=[
 <div class="q">「現在老師重新把問題說一次…誰能用你的話告訴全班老師在問什麼？」</div>
 <p><b>機制：</b>給明確信號，停止瞎猜；核對全班理解，給「先安靜想一分鐘」的空間，再重新啟動討論。</p>
 <p><b>情境：</b>答非所問，或學生不假思索拋出第二、第三個答案（討好老師）時。</p>`},
+{key:"closing",cat:"提問技巧",title:"結問 Closing — 結束前再理解",src:"依使用者新增（可自行修改）",html:`
+<div class="q">「結束前，請用一句話說說：剛才這段對話，你有什麼新的理解？」</div>
+<p><b>機制：</b>在對話或課堂收尾前，請對方回頭整理剛才說過的內容，把零散的討論收成自己的話，確認理解有沒有改變。</p>
+<p><b>情境：</b>議課或課堂即將結束、對話內容多而散，或想確認老師／學生帶走了什麼時。</p>
+<p><b>變化句：</b>「有哪一句話，你想帶回去用？」「如果只留一個重點，會是什麼？」「跟剛開始比，你的想法有什麼不一樣？」</p>`},
 {cat:"老師類型",title:"CT",src:SRC,html:`
 <p><b>水面上：</b>照稿念、無視臨場回饋、只點舉手/「安全」的學生、教具過度繁複。</p>
 <p><b>水面下情緒：</b>極度焦慮、害怕失控、擔心「接不住」學生答案、怕在觀課者面前犯錯。</p>
@@ -234,7 +240,7 @@ const CARDS=[
 <p><b>DO：</b>老師當然可以生氣，情緒沒有對錯。重點是「自我覺察」與「調節」；能示範暫停、調節、重新連結，本身就是最成功的 SEL 微時刻。</p>
 <div class="q">「我們不求完美控制的課堂，只求真實互動的美麗意外。」帶著一句「我很好奇…」走進下一堂課。</div>`}
 ];
-const QUICK=[["💬追問","追問：我很好奇你怎麼想到的"],["🔀反問","反問：有沒有例外？"],["🎯重問","重問：請用你的話重述問題"],
+const QUICK=[["💬追問","追問：我很好奇你怎麼想到的"],["🔀反問","反問：有沒有例外？"],["🎯重問","重問：請用你的話重述問題"],["📝結問","結問：結束前，請用一句話說說新的理解"],
 ["👍肯定","肯定老師的準備／用心"],["😟恐懼","老師說出擔心／恐懼："],["🧱信念","發現限制型信念："],
 ["✨亮點","亮點／美麗意外："],["📌下一步","下一步行動："],["❓待釐清","待釐清："]];
 
@@ -365,9 +371,10 @@ const PARTS={
  validate:['議課流程','①同頻接納 Validate','具體引用教案中值得肯定的設計（教學目標、活動安排、引導語、教具等，點名是哪一個環節），寫 3 句校長可直接說的肯定話，並指出老師用心背後可能的內在擔憂。'],
  uncover:['議課流程','②探問恐懼 Uncover','逐一推測這份教案各環節老師可能害怕的情況（如：哪個活動怕學生答不出、哪個轉換怕失控、哪一題怕沒有標準答案），給 3 個依教案內容量身的探問句，風格如「在剛才的對話中，你最擔心發生什麼事？」。'],
  reframe:['議課流程','③鬆綁信念 Reframe','依教案設計的特徵，推測老師可能的限制型信念（如「沒講出標準答案＝我沒教好」），給一段針對這份教案的鬆綁話，並列出「可以允許不完美」的 2 個具體環節。'],
- equip:['議課流程','④提供策略 Equip','列出一張對照表：教案的每個教學環節（點名）→ 最適合用追問、反問或重問哪一種 → 為什麼；再建議使用順序與「先放鬆、再帶技巧」的做法。'],
+ equip:['議課流程','④提供策略 Equip','列出一張對照表：教案的每個教學環節（點名）→ 最適合用追問、反問、重問或結問哪一種 → 為什麼；再建議使用順序與「先放鬆、再帶技巧」的做法。'],
  probing:['提問技巧','追問 Probing','挖掘敘事脈絡。依教案「每個主要教學環節」各設計 1–2 題：寫出「教案原本的問題→升級後的追問」，預想學生最可能的簡答或跳躍結論，並寫出學生回答後接續的下一句追問。共 4–6 題，句子必須引用教案中的具體內容。'],
  countering:['提問技巧','反問 Countering','擴充認知視野。依教案內容找出學生最可能出現「絕對化、單一視角、刻板印象」的 2–3 個環節，各設計「例外」或「換個立場」的反問，預想學生的答案，並寫接續的引導。共 3–5 題，句子必須引用教案中的具體內容。'],
+ closing:['提問技巧','結問 Closing','結束前再理解。針對教案最後的總結／收尾環節（以及議課結尾），設計 2–3 個具體可問的結問，請學生或老師回頭整理剛才的對話與收穫；預想回應，並寫如何把零散說法收成一句話。共 2–3 題，句子必須引用教案中的具體內容。'],
  redirecting:['提問技巧','重問 Redirecting','校準理解偏差。依教案內容找出學生最可能「答非所問、瞎猜標準答案、討好老師」的 2–3 個環節，寫出該環節老師可說的重述問句、靜思一分鐘的做法，以及重啟討論的第一句話。共 3–4 題，句子必須引用教案中的具體內容。']
 };
 function buildPrompt(asJson){
@@ -377,7 +384,7 @@ function buildPrompt(asJson){
   const fmt=asJson
    ?'只輸出一個 JSON 陣列，不要 markdown、不要任何說明。每個項目格式 {"key":"下列key原樣","cat":"議課流程或提問技巧","title":"卡片標題","body":"卡片內容"}，依下列順序，每個項目一張卡，key、cat、title 照下列文字原樣使用。body 為繁體中文純文字，可直接口說，多行時用 JSON 跳脫字元 '+BS+'n 換行；建議用「▸」開頭條列，每題內含「問：」「預想學生回應：」「接續：」。'
    :'請依下列項目分段輸出，每段以【卡片標題】開頭，繁體中文，條列，每題內含「問：」「預想學生回應：」「接續：」。';
-  return '你是協助校長做教練式觀議課的顧問（台灣國小/國中）。請根據下面的教案，依「議課流程 4 步＋提問技巧 3 種」的工具卡架構，產出校長可直接使用、且高度細緻的內容。每張卡都必須具體對應這份教案的教學環節與活動（引用教案中的字句或活動名稱），不要套用通用範例句，同一句話不可跨卡重複。'+NL+fmt+NL+NL+'要產出的卡片：'+NL+items+NL+NL+(pType.value?'老師類型：'+(TYPEDESC[pType.value]||pType.value)+'（請依此類型調整語氣與議課破口）'+NL:'')+'班級／科目：'+(pGrade.value||'未填')+'　單元：'+(pTopic.value||'未填')+NL+'【教案內容】'+NL+pText.value}
+  return '你是協助校長做教練式觀議課的顧問（台灣國小/國中）。請根據下面的教案，依「議課流程 4 步＋提問技巧 4 種」的工具卡架構，產出校長可直接使用、且高度細緻的內容。每張卡都必須具體對應這份教案的教學環節與活動（引用教案中的字句或活動名稱），不要套用通用範例句，同一句話不可跨卡重複。'+NL+fmt+NL+NL+'要產出的卡片：'+NL+items+NL+NL+(pType.value?'老師類型：'+(TYPEDESC[pType.value]||pType.value)+'（請依此類型調整語氣與議課破口）'+NL:'')+'班級／科目：'+(pGrade.value||'未填')+'　單元：'+(pTopic.value||'未填')+NL+'【教案內容】'+NL+pText.value}
 function copyPrompt(){if(!pText.value.trim())return alert('請先貼上教案');navigator.clipboard.writeText(buildPrompt(false)).then(()=>toast('已複製提示詞，可貼到任一 AI'))}
 const PV={gemini:'Gemini',openai:'ChatGPT',claude:'Claude'};
 function refreshKeyUI(){aiPri.value=localStorage.getItem('aiPri')||'gemini';keyStatus.textContent='已設定：'+(Object.keys(PV).filter(k=>localStorage.getItem('key_'+k)).map(k=>PV[k]).join('、')||'無')}
@@ -406,7 +413,7 @@ async function genPlan(){
   pGo.disabled=false;pGo.textContent='✨ 依教案產生工具卡';
 }
 let planCards=[];
-function guessKey(t){return t.includes('追問')?'probing':t.includes('反問')?'countering':t.includes('重問')?'redirecting':t.includes('①')?'validate':t.includes('②')?'uncover':t.includes('③')?'reframe':t.includes('④')?'equip':''}
+function guessKey(t){return t.includes('追問')?'probing':t.includes('反問')?'countering':t.includes('重問')?'redirecting':t.includes('結問')?'closing':t.includes('①')?'validate':t.includes('②')?'uncover':t.includes('③')?'reframe':t.includes('④')?'equip':''}
 let LIB=JSON.parse(localStorage.getItem('lessonLib')||'[]');
 function applyCards(name,cards){
   planCards=cards;const its={};cards.forEach(c=>{if(c.key)its[c.key]={title:c.title,body:c.body}});
