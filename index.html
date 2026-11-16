@@ -557,9 +557,16 @@ function applyCards(name,cards){
   planCards=cards;const its={};cards.forEach(c=>{if(c.key)its[c.key]={title:c.title,body:c.body}});
   if(Object.keys(its).length){LESSON={name,items:its};localStorage.setItem('lesson',JSON.stringify(LESSON));renderCards()}
 }
+const TECH=[['重問','Redirecting','給明確信號、停止瞎猜；請對方用自己的話重述問題，靜思一分鐘後重新對焦。','「請用你的話，告訴全班老師在問什麼？」'],
+ ['追問','Probing','用「我很好奇」請對方補齊思考脈絡，先不評價，爭取思考空間。','「我很好奇，你是怎麼一步步想到的？」'],
+ ['反問','Countering','挑戰絕對化的說法，找例外、換立場，撐出思考的廣度。','「永遠都是這樣嗎？有沒有什麼時候是例外？」'],
+ ['結問','Closing','收尾前請對方回頭整理，用一句話說出新的理解，確認有沒有改變。','「結束前，請用一句話說說你有什麼新的理解？」']];
+function techBlock(){
+  return '<div class="lesson" style="margin:6px 0"><h4>四問技巧（重問・追問・反問・結問）</h4>'+TECH.map(t=>'<div class="qa"><span class="ql">'+t[0]+'</span><b>'+t[1]+'</b>　'+esc(t[2])+'<br><small>'+esc(t[3])+'</small></div>').join('')+'</div>';
+}
 function drawPlan(msg){
   let h='',last='';
-  planCards.forEach((c,i)=>{if(c.cat!==last){h+='<h2>'+esc(c.cat)+'</h2>';last=c.cat}
+  planCards.forEach((c,i)=>{if(c.cat!==last){h+='<h2>'+esc(c.cat)+'</h2>'+(c.cat==='提問技巧'?techBlock():'');last=c.cat}
     h+='<details class="card" '+(i===0?'open':'')+'><summary>'+esc(c.title)+'</summary><div class="body">'+(c.key==='decision'?decisionTable(c.body):fmtBody(c.body))+'</div></details>'});
   pOut.innerHTML='<div class="warn">✅ '+msg+'已套用到「📚 工具卡」：議課流程與提問技巧卡片會顯示本教案內容。</div>'+h;pSave.style.display='block';
 }
