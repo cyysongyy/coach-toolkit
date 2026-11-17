@@ -143,7 +143,7 @@ audio{width:100%;margin:6px 0}
     <button class="btn gray" onclick="copyPrompt()">複製提示詞（貼到任一 AI）</button>
   </div>
   <div id="pOut"></div>
-  <div class="row"><button class="btn gray" id="pSave" style="display:none" onclick="planToCard()">另存為永久卡片</button></div>
+  <div class="row"><button class="btn" id="pWord" style="display:none" onclick="exportCurrentPlan()">⬇ 匯出 Word（A4・14 號字）</button><button class="btn gray" id="pSave" style="display:none" onclick="planToCard()">另存為永久卡片</button></div>
   <h2>📂 已存教案（隨時調出，只存在此手機）</h2>
   <div id="libList"></div>
   <details class="card" style="margin-top:12px"><summary>☁️ 雲端同步（Google Apps Script，選填）</summary><div class="body">
@@ -294,7 +294,7 @@ let curCat=CATS[0];
 function renderCards(){
   aCat.innerHTML=allCats().map(c=>`<option>${c}</option>`).join('');
   document.getElementById('cats').innerHTML=allCats().map(c=>`<button class="chip ${c===curCat?'on':''}" onclick="curCat='${c}';renderCards()">${c}</button>`).join('');
-  document.getElementById('cardList').innerHTML=(LESSON?'<div class="warn">📌 工具卡已套用教案：<b>'+esc(LESSON.name)+'</b>（議課流程、提問技巧卡片下方有本教案專屬內容） <button class="btn gray" style="padding:4px 10px;font-size:13px" onclick="clearLesson()">清除</button></div>':'')+allCards().filter(c=>c.cat===curCat).map((c,i)=>
+  document.getElementById('cardList').innerHTML=(LESSON?'<div class="warn">📌 工具卡已套用教案：<b>'+esc(LESSON.name)+'</b>（議課流程、提問技巧卡片下方有本教案專屬內容） <button class="btn org" style="padding:4px 10px;font-size:13px" onclick="exportLessonWord()">⬇ Word</button> <button class="btn gray" style="padding:4px 10px;font-size:13px" onclick="clearLesson()">清除</button></div>':'')+allCards().filter(c=>c.cat===curCat).map((c,i)=>
     `<details class="card" ${i===0?'open':''}><summary>${c.title}</summary><div class="body">${c.html}<div class="src">來源：${c.src}</div></div></details>`).join('');
 }
 /* ============ 導覽 ============ */
@@ -568,7 +568,7 @@ function drawPlan(msg){
   let h='',last='';
   planCards.forEach((c,i)=>{if(c.cat!==last){h+='<h2>'+esc(c.cat)+'</h2>'+(c.cat==='提問技巧'?techBlock():'');last=c.cat}
     h+='<details class="card" '+(i===0?'open':'')+'><summary>'+esc(c.title)+'</summary><div class="body">'+(c.key==='decision'?decisionTable(c.body):fmtBody(c.body))+'</div></details>'});
-  pOut.innerHTML='<div class="warn">✅ '+msg+'已套用到「📚 工具卡」：議課流程與提問技巧卡片會顯示本教案內容。</div>'+h;pSave.style.display='block';
+  pOut.innerHTML='<div class="warn">✅ '+msg+'已套用到「📚 工具卡」：議課流程與提問技巧卡片會顯示本教案內容。</div>'+h;pSave.style.display='block';pWord.style.display='block';
 }
 function saveLib(name,cards){
   LIB.unshift({id:Date.now(),name,date:new Date().toISOString(),form:{grade:pGrade.value,topic:pTopic.value,text:pText.value,type:pType.value,ctx:pCtx.value},cards});
@@ -577,7 +577,7 @@ function saveLib(name,cards){
 function renderLib(){
   if(!LIB.length){libList.innerHTML='<small style="color:#9ca3af">尚無已存教案，產生後會自動儲存並依日期歸檔</small>';return}
   const days={};LIB.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(e=>{const d=new Date(e.date).toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});(days[d]=days[d]||[]).push(e)});
-  libList.innerHTML=Object.keys(days).map(d=>'<h2>📅 '+d+'</h2>'+days[d].map(e=>'<div class="note" style="display:flex;gap:6px;align-items:center"><div style="flex:1"><b>'+esc(e.name)+'</b><br><small>'+new Date(e.date).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+'</small></div><button class="btn" style="padding:8px 12px;font-size:14px" onclick="loadLesson('+e.id+')">調出</button><button class="btn gray" style="padding:8px 12px;font-size:14px" onclick="delLesson('+e.id+')">刪除</button></div>').join('')).join('');
+  libList.innerHTML=Object.keys(days).map(d=>'<h2>📅 '+d+'</h2>'+days[d].map(e=>'<div class="note" style="display:flex;gap:6px;align-items:center"><div style="flex:1"><b>'+esc(e.name)+'</b><br><small>'+new Date(e.date).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+'</small></div><button class="btn" style="padding:8px 12px;font-size:14px" onclick="loadLesson('+e.id+')">調出</button><button class="btn org" style="padding:8px 12px;font-size:14px" onclick="exportLib('+e.id+')">Word</button><button class="btn gray" style="padding:8px 12px;font-size:14px" onclick="delLesson('+e.id+')">刪除</button></div>').join('')).join('');
 }
 function loadLesson(id){
   const e=LIB.find(x=>x.id===id);if(!e)return;
@@ -601,6 +601,119 @@ function planToCard(){
 const TYPES=['OP','CO','FL','CL','CT','CH'];
 const TYPEDESC={OP:'開放型：願意嘗試、歡迎回饋，但想法多、不易收斂成原則',CO:'保守型：依賴既有流程、求穩，常有必須完美的信念',FL:'靈活型：臨場應變佳，但調整依據未說出、難以複製',CL:'閉鎖型：少分享、防衛心較強，宜先同頻接納',CT:'掌控型：照稿進行、怕失控、只點安全的學生',CH:'聊天型：重視關係、氣氛熱絡，但停在閒聊與經驗分享'};
 [fType,pType].forEach(el=>el.innerHTML='<option value="">老師類型：未選</option>'+TYPES.map(t=>'<option>'+t+'</option>').join(''));
+/* ============ 匯出 Word（A4・全文 14 號字）：純前端產生 .docx，不用外部套件、不上傳 ============ */
+const DOCX_MIME='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const FLOW_KEYS=['validate','uncover','reframe','equip'],Q_KEYS=['decision','redirecting','probing','countering','closing'];
+const DX_NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+const DX_HEAD='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+const DX_FONT='<w:rFonts w:ascii="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:cs="Microsoft JhengHei"/>';
+const DX_CT=DX_HEAD+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>';
+const DX_RELS=DX_HEAD+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+const DX_DOCRELS=DX_HEAD+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/></Relationships>';
+const DX_STYLES=DX_HEAD+'<w:styles '+DX_NS+'><w:docDefaults><w:rPrDefault><w:rPr>'+DX_FONT+'<w:sz w:val="28"/><w:szCs w:val="28"/><w:lang w:val="en-US" w:eastAsia="zh-TW" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="80" w:line="312" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>'
+ +'<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>'
+ +'<w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:uiPriority w:val="99"/><w:semiHidden/><w:unhideWhenUsed/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>'
+ +'<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:keepLines/><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="4" w:color="E8761E"/></w:pBdr><w:spacing w:before="360" w:after="120"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:bCs/><w:color w:val="0B3D6B"/><w:sz w:val="36"/><w:szCs w:val="36"/></w:rPr></w:style>'
+ +'<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="280" w:after="100"/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:b/><w:bCs/><w:color w:val="0B3D6B"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr></w:style></w:styles>';
+const DX_FOOTER=DX_HEAD+'<w:ftr '+DX_NS+'><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t xml:space="preserve">第 </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r><w:r><w:t xml:space="preserve"> 頁</w:t></w:r></w:p></w:ftr>';
+const DX_LBL={'問':'E8761E','預想學生回應':'0B6FB8','預想回應':'0B6FB8','學生回應':'0B6FB8','接續':'0B8A5F','診斷':'6B7280'};
+function dxR(t,o){o=o||{};const sz=o.sz||28;
+  return '<w:r><w:rPr>'+(o.b?'<w:b/><w:bCs/>':'')+(o.i?'<w:i/><w:iCs/>':'')+(o.c?'<w:color w:val="'+o.c+'"/>':'')+'<w:sz w:val="'+sz+'"/><w:szCs w:val="'+sz+'"/></w:rPr><w:t xml:space="preserve">'+esc(String(t).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,''))+'</w:t></w:r>'}
+function dxInline(t,o){return String(t).split(/\*\*(.+?)\*\*/).map((s,i)=>s?dxR(s,i%2?Object.assign({},o,{b:1}):o):'').join('')}
+function dxP(runs,o){o=o||{};let pr='';
+  if(o.style)pr+='<w:pStyle w:val="'+o.style+'"/>';
+  if(o.keepNext)pr+='<w:keepNext/>';
+  if(o.keepLines)pr+='<w:keepLines/>';
+  if(o.bdrL)pr+='<w:pBdr><w:left w:val="single" w:sz="24" w:space="8" w:color="'+o.bdrL+'"/></w:pBdr>';
+  if(o.bdrB)pr+='<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="6" w:color="'+o.bdrB+'"/></w:pBdr>';
+  if(o.bdrT)pr+='<w:pBdr><w:top w:val="single" w:sz="4" w:space="6" w:color="'+o.bdrT+'"/></w:pBdr>';
+  if(o.fill)pr+='<w:shd w:val="clear" w:color="auto" w:fill="'+o.fill+'"/>';
+  if(!o.style||o.before!=null||o.after!=null)pr+='<w:spacing w:before="'+(o.before||0)+'" w:after="'+(o.after==null?80:o.after)+'"/>';
+  if(o.left||o.hang)pr+='<w:ind w:left="'+(o.left||0)+'"'+(o.hang?' w:hanging="'+o.hang+'"':'')+'/>';
+  if(o.jc)pr+='<w:jc w:val="'+o.jc+'"/>';
+  return '<w:p><w:pPr>'+pr+'</w:pPr>'+runs+'</w:p>'}
+function dxBody(t){
+  const out=[];
+  String(t).split(/\r?\n/).forEach(l=>{
+    l=l.trim();if(!l)return;
+    const m=l.match(/^(?:[▸•*-]\s*)?(問|預想學生回應|預想回應|學生回應|接續|診斷)[：:]\s*(.*)$/);
+    if(m){const c=DX_LBL[m[1]],lab=dxR(m[1]+'：',{b:1,c:c});
+      out.push(m[1]==='問'?dxP(lab+dxInline(m[2]),{fill:'FDEBD8',bdrL:'E8761E',left:160,keepLines:1}):dxP(lab+dxInline(m[2]),{left:360,keepLines:1}))}
+    else if(/^[▸•]/.test(l))out.push(dxP(dxR('▸ ',{c:'0B3D6B'})+dxInline(l.replace(/^[▸•]\s*/,'')),{left:420,hang:420,keepLines:1}));
+    else out.push(dxP(dxInline(l),{keepLines:1}));
+  });
+  return out.join('');
+}
+function dxTable(t){
+  const rows=String(t).split(/\r?\n/).map(l=>l.trim().replace(/^[▸•*-]\s*/,'')).filter(l=>l.indexOf('｜')>0||l.indexOf('|')>0).map(l=>l.split(/[｜|]/).map(x=>x.trim()));
+  if(!rows.length)return dxBody(t);
+  const W=[2700,2100,4838];
+  const cell=(txt,i,h)=>'<w:tc><w:tcPr><w:tcW w:w="'+W[i]+'" w:type="dxa"/>'+(h?'<w:shd w:val="clear" w:color="auto" w:fill="0B3D6B"/>':'')+'</w:tcPr>'+dxP(h?dxR(txt,{b:1,c:'FFFFFF'}):dxInline(txt),{after:0,jc:h?'center':''})+'</w:tc>';
+  const tr=(cells,h)=>'<w:tr><w:trPr><w:cantSplit/>'+(h?'<w:tblHeader/>':'')+'</w:trPr>'+cells.map((c,i)=>cell(c,i,h)).join('')+'</w:tr>';
+  const bd=['top','left','bottom','right','insideH','insideV'].map(s=>'<w:'+s+' w:val="single" w:sz="4" w:space="0" w:color="9CA3AF"/>').join('');
+  return '<w:tbl><w:tblPr><w:tblW w:w="9638" w:type="dxa"/><w:tblBorders>'+bd+'</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="80" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>'+W.map(w=>'<w:gridCol w:w="'+w+'"/>').join('')+'</w:tblGrid>'
+    +tr(['學生狀況','診斷','策略'],1)+rows.map(r=>tr([r[0]||'',r[1]||'',r.slice(2).join('｜')])).join('')+'</w:tbl>'+dxP('',{after:120});
+}
+function buildDocxXml(name,cards,meta){
+  meta=meta||{};
+  const by={};cards.forEach(c=>{if(c.key&&!by[c.key])by[c.key]=c});
+  const used=new Set(),pick=ks=>ks.map(k=>{if(by[k]){used.add(by[k]);return by[k]}}).filter(Boolean);
+  const flow=pick(FLOW_KEYS),qs=pick(Q_KEYS);
+  cards.forEach(c=>{if(!used.has(c))(c.cat==='提問技巧'?qs:flow).push(c)});
+  const flat=v=>String(v).replace(/\s*\r?\n\s*/g,' ').trim();
+  const info=[['教案',name],['班級／科目',meta.grade],['單元',meta.topic],['老師類型',meta.type?(TYPEDESC[meta.type]||meta.type):''],['情境補充',meta.ctx],['匯出日期',new Date(meta.date||Date.now()).toLocaleDateString('zh-TW')]].filter(x=>x[1]&&flat(x[1]));
+  const body=[];
+  body.push(dxP(dxR('議課 Coach 流程稿',{b:1,sz:44,c:'0B3D6B'}),{jc:'center',after:40}));
+  body.push(dxP(dxR('四步對話法（Validate → Uncover → Reframe → Equip）＋ SEL 四問',{b:1,c:'3B82B8'}),{jc:'center',after:200,bdrB:'CCCCCC'}));
+  info.forEach(x=>body.push(dxP(dxR(x[0]+'：',{b:1,c:'0B3D6B'})+dxR(flat(x[1])),{after:40})));
+  const nums=['一','二','三'];let n=0;
+  const section=(title,list,isQ)=>{if(!list.length)return;
+    body.push(dxP(dxR(nums[n++]+'、'+title,{b:1,sz:36,c:'0B3D6B'}),{style:'Heading1'}));
+    list.forEach(c=>{body.push(dxP(dxR(c.title,{b:1,sz:32,c:'0B3D6B'}),{style:'Heading2'}));body.push(c.key==='decision'?dxTable(c.body):dxBody(c.body))})};
+  section('議課流程（四步對話法）',flow);
+  section('提問技巧（SEL 四問）',qs);
+  body.push(dxP(dxR('來源：架構取自'+SRC+'；內容由 AI 依上述教案與情境產生，請依現場情況修改後使用。',{i:1,c:'6B7280'}),{before:360,bdrT:'CCCCCC'}));
+  const sect='<w:sectPr><w:footerReference w:type="default" r:id="rId2"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr>';
+  return DX_HEAD+'<w:document '+DX_NS+'><w:body>'+body.join('')+sect+'</w:body></w:document>';
+}
+const CRC_T=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC_T[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0}
+function zipStore(files,mime){
+  const enc=new TextEncoder(),parts=[],central=[],d=new Date();let off=0;
+  const time=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1),date=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();
+  files.forEach(f=>{
+    const nm=enc.encode(f.name),crc=crc32(f.data),sz=f.data.length;
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(10,time,true);lh.setUint16(12,date,true);
+    lh.setUint32(14,crc,true);lh.setUint32(18,sz,true);lh.setUint32(22,sz,true);lh.setUint16(26,nm.length,true);
+    parts.push(new Uint8Array(lh.buffer),nm,f.data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint16(12,time,true);ch.setUint16(14,date,true);
+    ch.setUint32(16,crc,true);ch.setUint32(20,sz,true);ch.setUint32(24,sz,true);ch.setUint16(28,nm.length,true);ch.setUint32(42,off,true);
+    central.push(new Uint8Array(ch.buffer),nm);
+    off+=30+nm.length+sz;
+  });
+  const cdSize=central.reduce((a,x)=>a+x.length,0),end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true);end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);end.setUint32(12,cdSize,true);end.setUint32(16,off,true);
+  return new Blob([...parts,...central,new Uint8Array(end.buffer)],{type:mime});
+}
+function exportWord(name,cards,meta){
+  if(!cards||!cards.length)return alert('目前沒有可匯出的內容，請先產生或調出教案工具卡');
+  const enc=new TextEncoder();
+  const files=[['[Content_Types].xml',DX_CT],['_rels/.rels',DX_RELS],['word/document.xml',buildDocxXml(name,cards,meta)],['word/styles.xml',DX_STYLES],['word/footer1.xml',DX_FOOTER],['word/_rels/document.xml.rels',DX_DOCRELS]].map(f=>({name:f[0],data:enc.encode(f[1])}));
+  const d=new Date(),day=''+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());
+  const fn=('議課流程_'+(name||'教案')+'_'+day).replace(/[\\\/:*?"<>|\s]+/g,'_')+'.docx';
+  const a=document.createElement('a');a.href=URL.createObjectURL(zipStore(files,DOCX_MIME));a.download=fn;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast('已匯出 Word：'+fn);
+}
+function exportCurrentPlan(){exportWord(((pGrade.value||'教案')+' '+(pTopic.value||'')).trim(),planCards,{grade:pGrade.value,topic:pTopic.value,type:pType.value,ctx:pCtx.value,date:new Date().toISOString()})}
+function exportLib(id){const e=LIB.find(x=>x.id===id);if(e)exportWord(e.name,e.cards,Object.assign({},e.form,{date:e.date}))}
+function exportLessonWord(){
+  if(!LESSON)return;
+  const cards=Object.keys(LESSON.items).map(k=>({key:k,cat:FLOW_KEYS.includes(k)?'議課流程':'提問技巧',title:LESSON.items[k].title,body:LESSON.items[k].body}));
+  const e=LIB.find(x=>x.name===LESSON.name);
+  exportWord(LESSON.name,cards,e?Object.assign({},e.form,{date:e.date}):{});
+}
 /* ===== 雲端同步（GAS） ===== */
 const cl={url:()=>localStorage.getItem('gasUrl')||''};
 function cloudMsg(t){if(window.cloudStatus)cloudStatus.textContent=t}
