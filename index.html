@@ -122,10 +122,11 @@ audio{width:100%;margin:6px 0}
   <a class="btn" style="display:block;text-align:center;text-decoration:none;margin:8px 0" target="_blank" rel="noopener" href="https://drive.google.com/drive/u/0/folders/1QIaM3Clcp-tBEwvhzhFo78jtBMvXosAZ">📂 開啟教案資料夾（Google Drive）</a>
   <button class="btn org" style="width:100%;margin-bottom:8px" onclick="driveOpen()">⚡ 從 Drive 選教案（自動讀入）</button>
   <div id="driveBox" style="display:none"><div id="driveList"></div><button class="btn gray" style="width:100%;margin:6px 0" onclick="driveBox.style.display='none'">收合</button></div>
+  <select id="pMode" style="margin-bottom:8px"><option value="pre">說課（老師尚未上課，預先釐清設計想法）</option><option value="post">議課（上課後回顧討論）</option></select>
   <select id="pType" style="margin-bottom:8px"></select>
   <div class="row"><input autocomplete="off" id="pGrade" placeholder="班級／科目（班級可填）"><input autocomplete="off" id="pTopic" placeholder="單元（選填）"></div>
   <textarea autocomplete="off" id="pText" placeholder="貼上或輸入教案內容：教學目標、教學流程、活動設計、提問…" style="min-height:180px"></textarea>
-  <textarea autocomplete="off" id="pCtx" placeholder="情境補充（選填）：學生特質、這次觀課的焦點、老師的狀況、想練習的重點…" style="margin-top:8px;min-height:70px"></textarea>
+  <textarea autocomplete="off" id="pCtx" placeholder="情境補充（選填）：學生特質、這次說課／觀課的焦點、老師的狀況、想練習的重點…" style="margin-top:8px;min-height:70px"></textarea>
   <h2>產出架構（取自「工具卡」：議課流程 4 步 ＋ 提問 4 種）</h2>
   <div class="steps" style="flex-wrap:wrap" id="pParts">
     <label style="flex:1 1 22%"><input type="checkbox" value="validate" checked><span>①同頻接納</span></label>
@@ -143,8 +144,9 @@ audio{width:100%;margin:6px 0}
     <button class="btn gray" onclick="copyPrompt()">複製提示詞（貼到任一 AI）</button>
   </div>
   <div id="pOut"></div>
-  <div class="row"><button class="btn" id="pWord" style="display:none" onclick="exportCurrentPlan()">⬇ 匯出 Word（A4・14 號字）</button><button class="btn gray" id="pSave" style="display:none" onclick="planToCard()">另存為永久卡片</button></div>
-  <label style="display:flex;gap:8px;align-items:center;margin:6px 0;font-size:14px;color:#4b5563"><input type="checkbox" id="wFull" style="width:auto" onchange="localStorage.setItem('wordFull',this.checked?'1':'0')"> Word 匯出改用完整版（加入預想學生回應與接續，頁數較多）</label>
+  <div class="row" id="wRow" style="display:none"><button class="btn" onclick="exportCurrentPlan(false)">⬇ Word 精簡版</button><button class="btn" onclick="exportCurrentPlan(true)">⬇ Word 完整版</button></div>
+  <div class="row"><button class="btn gray" id="pSave" style="display:none" onclick="planToCard()">另存為永久卡片</button></div>
+  <p class="src" style="margin:0 0 8px">Word 為 A4、14 號字。精簡版只留要問的問句與要點；完整版另含預想學生回應、接續與診斷。</p>
   <h2>📂 已存教案（隨時調出，只存在此手機）</h2>
   <div id="libList"></div>
   <details class="card" style="margin-top:12px"><summary>☁️ 雲端同步（Google Apps Script，選填）</summary><div class="body">
@@ -295,7 +297,7 @@ let curCat=CATS[0];
 function renderCards(){
   aCat.innerHTML=allCats().map(c=>`<option>${c}</option>`).join('');
   document.getElementById('cats').innerHTML=allCats().map(c=>`<button class="chip ${c===curCat?'on':''}" onclick="curCat='${c}';renderCards()">${c}</button>`).join('');
-  document.getElementById('cardList').innerHTML=(LESSON?'<div class="warn">📌 工具卡已套用教案：<b>'+esc(LESSON.name)+'</b>（議課流程、提問技巧卡片下方有本教案專屬內容） <button class="btn org" style="padding:4px 10px;font-size:13px" onclick="exportLessonWord()">⬇ Word</button> <button class="btn gray" style="padding:4px 10px;font-size:13px" onclick="clearLesson()">清除</button></div>':'')+allCards().filter(c=>c.cat===curCat).map((c,i)=>
+  document.getElementById('cardList').innerHTML=(LESSON?'<div class="warn">📌 工具卡已套用教案：<b>'+esc(LESSON.name)+'</b>（議課流程、提問技巧卡片下方有本教案專屬內容） <button class="btn org" style="padding:4px 10px;font-size:13px" onclick="exportLessonWord(false)">⬇ Word精簡</button> <button class="btn org" style="padding:4px 10px;font-size:13px" onclick="exportLessonWord(true)">⬇ Word完整</button> <button class="btn gray" style="padding:4px 10px;font-size:13px" onclick="clearLesson()">清除</button></div>':'')+allCards().filter(c=>c.cat===curCat).map((c,i)=>
     `<details class="card" ${i===0?'open':''}><summary>${c.title}</summary><div class="body">${c.html}<div class="src">來源：${c.src}</div></div></details>`).join('');
 }
 /* ============ 導覽 ============ */
@@ -516,14 +518,22 @@ const PARTS={
  decision:['提問技巧','SEL 四問決策卡','依這份教案與情境，預想最可能出現的 4 種學生狀況（對應重問、追問、反問、結問各一），每行一列，格式固定為「學生狀況｜診斷｜策略（用哪一問＋具體可問的句子）」，共 4 行，不要表頭、不要其他文字；學生狀況必須是這堂課會真的發生的情形（引用教案活動）。'],
  closing:['提問技巧','結問 Closing','復盤所有：對剛剛所有內容做總結與再確認。針對教案最後的總結／收尾環節（以及議課結尾），設計 2–3 個具體可問的結問，請學生或老師回頭整理剛才的對話與收穫；預想回應，並寫如何把零散說法收成一句話。共 2–3 題，句子必須引用教案中的具體內容。']
 };
+const PARTS_PRE={
+ validate:'具體引用教案中值得肯定的設計（教學目標、活動安排、引導語、教具等，點名是哪一個環節），寫 3 句校長可直接對「尚未上課的老師」說的肯定話（用「您設計了…」，不要用「剛才課堂上」），並指出老師用心背後可能的內在擔憂。',
+ uncover:'請老師預想上課時的情形。逐一推測這份教案各環節老師可能害怕的情況（如：哪個活動怕學生答不出、哪個轉換怕失控、哪一題怕沒有標準答案），給 3 個依教案內容量身的探問句，用假設語氣，風格如「如果上課時學生沒有照您預期回答，您最擔心發生什麼事？」。',
+ reframe:'後設層次：協助老師覺察自己設計這堂課時的預設（「我為什麼認為這題一定要有標準答案？」「我預設了學生會怎麼答？」）。依教案設計的特徵，推測老師可能的限制型信念（如「沒講出標準答案＝我沒教好」），給一段針對這份教案、上課前就能先放下的鬆綁話，列出「上課時可以允許不完美」的 2 個具體環節，並附 1 個後設提問讓老師說出自己的設計想法。',
+ equip:'列出一張對照表：教案的每個教學環節（點名）→ 老師上課前就先備好的是重問、追問、反問或結問哪一種 → 為什麼；再建議「先放鬆、再帶技巧」的說課順序，以及上課當下學生出現狀況時可說的第一句話。',
+ closing:'復盤所有：針對說課對話的結尾與教案最後的總結／收尾環節，設計 2–3 個具體可問的結問，請老師用一句話說出：上課前，自己對這堂課最想確認的一件事、以及對自己設計的新理解；預想回應，並寫如何把零散說法收成一句話。共 2–3 題，句子必須引用教案中的具體內容。'
+};
+function partDesc(k){return(pMode.value==='pre'&&PARTS_PRE[k])?PARTS_PRE[k]:PARTS[k][2]}
 function buildPrompt(asJson){
   const on=[...document.querySelectorAll('#pParts input:checked')].map(i=>i.value);
   const NL=String.fromCharCode(10),BS=String.fromCharCode(92);
-  const items=on.map(k=>'- key='+k+'｜【'+PARTS[k][0]+'】'+PARTS[k][1]+'：'+PARTS[k][2]).join(NL);
+  const items=on.map(k=>'- key='+k+'｜【'+PARTS[k][0]+'】'+PARTS[k][1]+'：'+partDesc(k)).join(NL);
   const fmt=asJson
    ?'只輸出一個 JSON 陣列，不要 markdown、不要任何說明。每個項目格式 {"key":"下列key原樣","cat":"議課流程或提問技巧","title":"卡片標題","body":"卡片內容"}，依下列順序，每個項目一張卡，key、cat、title 照下列文字原樣使用。body 為繁體中文純文字，可直接口說，多行時用 JSON 跳脫字元 '+BS+'n 換行；建議用「▸」開頭條列，每題內含「問：」「預想學生回應：」「接續：」。'
    :'請依下列項目分段輸出，每段以【卡片標題】開頭，繁體中文，條列，每題內含「問：」「預想學生回應：」「接續：」。';
-  return '你是協助校長做教練式觀議課的顧問（台灣國小/國中）。請根據下面的教案，依「議課流程 4 步＋提問技巧 4 種」的工具卡架構，產出校長可直接使用、且高度細緻的內容。每張卡都必須具體對應這份教案的教學環節與活動（引用教案中的字句或活動名稱），不要套用通用範例句，同一句話不可跨卡重複。'+NL+fmt+NL+NL+'要產出的卡片：'+NL+items+NL+NL+(pType.value?'老師類型：'+(TYPEDESC[pType.value]||pType.value)+'（請依此類型調整語氣與議課破口）'+NL:'')+'班級／科目：'+(pGrade.value||'未填')+'　單元：'+(pTopic.value||'未填')+NL+(pCtx.value.trim()?'【情境補充】'+NL+pCtx.value.trim()+NL:'')+'【教案內容】'+NL+pText.value}
+  return (pMode.value==='pre'?'你是協助校長在老師「說課」時做教練的顧問（台灣國小/國中）。說課是老師尚未上課、先說明教案的階段，目的是讓老師在上課前，預先釐清並理解自己教學設計背後的想法（後設認知：我為什麼這樣設計？我預設了什麼？我擔心什麼？）。所有內容都必須用「預想」「如果上課時…」的語氣，不可寫成課後回顧（不要出現「剛才的課堂」「今天學生說」等已發生的說法）。請根據下面的教案，依四步流程＋提問技巧 4 種的工具卡架構（四步流程的 cat 分類名稱仍照填「議課流程」），產出校長可直接使用、且高度細緻的內容。每張卡都必須具體對應這份教案的教學環節與活動（引用教案中的字句或活動名稱），不要套用通用範例句，同一句話不可跨卡重複。':'你是協助校長做教練式觀議課的顧問（台灣國小/國中）。請根據下面的教案，依「議課流程 4 步＋提問技巧 4 種」的工具卡架構，產出校長可直接使用、且高度細緻的內容。每張卡都必須具體對應這份教案的教學環節與活動（引用教案中的字句或活動名稱），不要套用通用範例句，同一句話不可跨卡重複。')+NL+fmt+NL+NL+'要產出的卡片：'+NL+items+NL+NL+(pType.value?'老師類型：'+(TYPEDESC[pType.value]||pType.value)+(pMode.value==='pre'?'（請依此類型調整語氣與說課時的提問切入點）':'（請依此類型調整語氣與議課破口）')+NL:'')+'班級／科目：'+(pGrade.value||'未填')+'　單元：'+(pTopic.value||'未填')+NL+(pCtx.value.trim()?'【情境補充】'+NL+pCtx.value.trim()+NL:'')+'【教案內容】'+NL+pText.value}
 function copyPrompt(){if(!pText.value.trim())return alert('請先貼上教案');navigator.clipboard.writeText(buildPrompt(false)).then(()=>toast('已複製提示詞，可貼到任一 AI'))}
 const PV={gemini:'Gemini',openai:'ChatGPT',claude:'Claude'};
 function refreshKeyUI(){aiPri.value=localStorage.getItem('aiPri')||'gemini';autoTxBox.checked=localStorage.getItem('autoTx')!=='0';keyStatus.textContent='已設定：'+(Object.keys(PV).filter(k=>localStorage.getItem('key_'+k)).map(k=>PV[k]).join('、')||'無')}
@@ -569,20 +579,20 @@ function drawPlan(msg){
   let h='',last='';
   planCards.forEach((c,i)=>{if(c.cat!==last){h+='<h2>'+esc(c.cat)+'</h2>'+(c.cat==='提問技巧'?techBlock():'');last=c.cat}
     h+='<details class="card" '+(i===0?'open':'')+'><summary>'+esc(c.title)+'</summary><div class="body">'+(c.key==='decision'?decisionTable(c.body):fmtBody(c.body))+'</div></details>'});
-  pOut.innerHTML='<div class="warn">✅ '+msg+'已套用到「📚 工具卡」：議課流程與提問技巧卡片會顯示本教案內容。</div>'+h;pSave.style.display='block';pWord.style.display='block';
+  pOut.innerHTML='<div class="warn">✅ '+msg+'已套用到「📚 工具卡」：議課流程與提問技巧卡片會顯示本教案內容。</div>'+h;pSave.style.display='block';wRow.style.display='flex';
 }
 function saveLib(name,cards){
-  LIB.unshift({id:Date.now(),name,date:new Date().toISOString(),form:{grade:pGrade.value,topic:pTopic.value,text:pText.value,type:pType.value,ctx:pCtx.value},cards});
+  LIB.unshift({id:Date.now(),name,date:new Date().toISOString(),form:{grade:pGrade.value,topic:pTopic.value,text:pText.value,mode:pMode.value,type:pType.value,ctx:pCtx.value},cards});
   LIB=LIB.slice(0,200);localStorage.setItem('lessonLib',JSON.stringify(LIB));renderLib();cloudPush(LIB[0]);
 }
 function renderLib(){
   if(!LIB.length){libList.innerHTML='<small style="color:#9ca3af">尚無已存教案，產生後會自動儲存並依日期歸檔</small>';return}
   const days={};LIB.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(e=>{const d=new Date(e.date).toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});(days[d]=days[d]||[]).push(e)});
-  libList.innerHTML=Object.keys(days).map(d=>'<h2>📅 '+d+'</h2>'+days[d].map(e=>'<div class="note" style="display:flex;gap:6px;align-items:center"><div style="flex:1"><b>'+esc(e.name)+'</b><br><small>'+new Date(e.date).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+'</small></div><button class="btn" style="padding:8px 12px;font-size:14px" onclick="loadLesson('+e.id+')">調出</button><button class="btn org" style="padding:8px 12px;font-size:14px" onclick="exportLib('+e.id+')">Word</button><button class="btn gray" style="padding:8px 12px;font-size:14px" onclick="delLesson('+e.id+')">刪除</button></div>').join('')).join('');
+  libList.innerHTML=Object.keys(days).map(d=>'<h2>📅 '+d+'</h2>'+days[d].map(e=>'<div class="note" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><div style="flex:1 1 100%"><b>'+esc(e.name)+'</b><br><small>'+new Date(e.date).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+'</small></div><button class="btn" style="padding:8px 12px;font-size:14px" onclick="loadLesson('+e.id+')">調出</button><button class="btn org" style="padding:8px 10px;font-size:13px" onclick="exportLib('+e.id+',false)">Word精簡</button><button class="btn org" style="padding:8px 10px;font-size:13px" onclick="exportLib('+e.id+',true)">Word完整</button><button class="btn gray" style="padding:8px 12px;font-size:14px" onclick="delLesson('+e.id+')">刪除</button></div>').join('')).join('');
 }
 function loadLesson(id){
   const e=LIB.find(x=>x.id===id);if(!e)return;
-  pGrade.value=e.form.grade||'';pTopic.value=e.form.topic||'';pText.value=e.form.text||'';pCtx.value=e.form.ctx||'';pType.value=e.form.type||'';
+  pGrade.value=e.form.grade||'';pTopic.value=e.form.topic||'';pText.value=e.form.text||'';pCtx.value=e.form.ctx||'';pType.value=e.form.type||'';pMode.value=e.form.mode||'post';
   applyCards(e.name,e.cards);drawPlan('已調出「'+esc(e.name)+'」，');window.scrollTo(0,0);
 }
 function delLesson(id){if(confirm('刪除這份已存教案？')){cloudDel(id);LIB=LIB.filter(x=>x.id!==id);localStorage.setItem('lessonLib',JSON.stringify(LIB));renderLib()}}
@@ -681,7 +691,7 @@ function buildDocxXml(name,cards,meta,full){
   const kv=(k,v)=>dxR(k+'：',{b:1,c:'0B3D6B'})+dxR(flat(v));
   const line1=[['教案',name],['班級／科目',meta.grade],['單元',meta.topic]].filter(x=>x[1]&&flat(x[1])).map(x=>kv(x[0],x[1])).join(dxR('　'));
   const body=[];
-  body.push(dxP(dxR('議課 Coach 流程稿'+(full?'（完整版）':''),{b:1,sz:40,c:'0B3D6B'}),{jc:'center',after:20}));
+  body.push(dxP(dxR((meta.mode==='pre'?'說課 Coach 流程稿（上課前）':'議課 Coach 流程稿')+(full?'・完整版':'・精簡版'),{b:1,sz:40,c:'0B3D6B'}),{jc:'center',after:20}));
   body.push(dxP(dxR('四步對話法（Validate → Uncover → Reframe → Equip）＋ SEL 四問',{b:1,c:'3B82B8'}),{jc:'center',after:100,bdrB:'CCCCCC'}));
   if(line1)body.push(dxP(line1,{after:20}));
   if(meta.type)body.push(dxP(kv('老師類型',TYPEDESC[meta.type]||meta.type),{after:20}));
@@ -717,23 +727,22 @@ function zipStore(files,mime){
   end.setUint32(0,0x06054b50,true);end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);end.setUint32(12,cdSize,true);end.setUint32(16,off,true);
   return new Blob([...parts,...central,new Uint8Array(end.buffer)],{type:mime});
 }
-function exportWord(name,cards,meta){
+function exportWord(name,cards,meta,full){
   if(!cards||!cards.length)return alert('目前沒有可匯出的內容，請先產生或調出教案工具卡');
   const enc=new TextEncoder();
-  const full=localStorage.getItem('wordFull')==='1';
   const files=[['[Content_Types].xml',DX_CT],['_rels/.rels',DX_RELS],['word/document.xml',buildDocxXml(name,cards,meta,full)],['word/styles.xml',DX_STYLES],['word/footer1.xml',DX_FOOTER],['word/_rels/document.xml.rels',DX_DOCRELS]].map(f=>({name:f[0],data:enc.encode(f[1])}));
   const d=new Date(),day=''+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());
-  const fn=('議課流程_'+(name||'教案')+(full?'_完整':'')+'_'+day).replace(/[\\\/:*?"<>|\s]+/g,'_')+'.docx';
+  const fn=((meta&&meta.mode==='pre'?'說課流程_':'議課流程_')+(name||'教案')+(full?'_完整':'_精簡')+'_'+day).replace(/[\\\/:*?"<>|\s]+/g,'_')+'.docx';
   const a=document.createElement('a');a.href=URL.createObjectURL(zipStore(files,DOCX_MIME));a.download=fn;document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast('已匯出 Word：'+fn);
 }
-function exportCurrentPlan(){exportWord(((pGrade.value||'教案')+' '+(pTopic.value||'')).trim(),planCards,{grade:pGrade.value,topic:pTopic.value,type:pType.value,ctx:pCtx.value,date:new Date().toISOString()})}
-function exportLib(id){const e=LIB.find(x=>x.id===id);if(e)exportWord(e.name,e.cards,Object.assign({},e.form,{date:e.date}))}
-function exportLessonWord(){
+function exportCurrentPlan(full){exportWord(((pGrade.value||'教案')+' '+(pTopic.value||'')).trim(),planCards,{grade:pGrade.value,topic:pTopic.value,mode:pMode.value,type:pType.value,ctx:pCtx.value,date:new Date().toISOString()},full)}
+function exportLib(id,full){const e=LIB.find(x=>x.id===id);if(e)exportWord(e.name,e.cards,Object.assign({},e.form,{date:e.date}),full)}
+function exportLessonWord(full){
   if(!LESSON)return;
   const cards=Object.keys(LESSON.items).map(k=>({key:k,cat:FLOW_KEYS.includes(k)?'議課流程':'提問技巧',title:LESSON.items[k].title,body:LESSON.items[k].body}));
   const e=LIB.find(x=>x.name===LESSON.name);
-  exportWord(LESSON.name,cards,e?Object.assign({},e.form,{date:e.date}):{});
+  exportWord(LESSON.name,cards,e?Object.assign({},e.form,{date:e.date}):{},full);
 }
 /* ===== 雲端同步（GAS） ===== */
 const cl={url:()=>localStorage.getItem('gasUrl')||''};
@@ -782,13 +791,12 @@ async function resumeSession(id){
 document.getElementById('steps').addEventListener('change',autoSave);
 noteText.addEventListener('input',autoSave);
 (function(){
-  const ids=['pGrade','pTopic','pText','pType','pCtx'];
+  const ids=['pGrade','pTopic','pText','pMode','pType','pCtx'];
   try{const dr=JSON.parse(localStorage.getItem('planDraft')||'{}');ids.forEach(i=>{if(dr[i]!=null)document.getElementById(i).value=dr[i]})}catch(e){}
   const save=()=>{const o={};ids.forEach(i=>o[i]=document.getElementById(i).value);localStorage.setItem('planDraft',JSON.stringify(o))};
   ids.forEach(i=>{document.getElementById(i).addEventListener('input',save);document.getElementById(i).addEventListener('change',save)});
 })();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)cloudPull()});
-wFull.checked=localStorage.getItem('wordFull')==='1';
 renderCards();refreshKeyUI();renderLib();cloudPull();
 </script>
 </body>
