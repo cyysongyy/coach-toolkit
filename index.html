@@ -611,7 +611,7 @@ function planToCard(){
 }
 const TYPES=['OP','CO','FL','CL','CT','CH'];
 const TYPEDESC={OP:'開放型：願意嘗試、歡迎回饋，但想法多、不易收斂成原則',CO:'保守型：依賴既有流程、求穩，常有必須完美的信念',FL:'靈活型：臨場應變佳，但調整依據未說出、難以複製',CL:'閉鎖型：少分享、防衛心較強，宜先同頻接納',CT:'掌控型：照稿進行、怕失控、只點安全的學生',CH:'聊天型：重視關係、氣氛熱絡，但停在閒聊與經驗分享'};
-const TYPENAME={OP:'Open 開放型',CO:'Coherence 保守型',FL:'Flexible 靈活型',CL:'Close 閉鎖型',CT:'Controlling 掌控型',CH:'Chat 聊天型'};
+const TYPENAME={OP:'Open',CO:'Coherence',FL:'Flexible',CL:'Close',CT:'Controlling',CH:'Chat'};
 [fType,pType].forEach(el=>el.innerHTML='<option value="">老師類型：未選</option>'+TYPES.map(t=>'<option value="'+t+'">'+t+'｜'+TYPENAME[t]+'</option>').join(''));
 /* ============ 匯出 Word（A4・全文 14 號字）：純前端產生 .docx，不用外部套件、不上傳 ============ */
 const DOCX_MIME='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
