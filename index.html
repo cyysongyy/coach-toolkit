@@ -695,7 +695,6 @@ function buildDocxXml(name,cards,meta,full){
   body.push(dxP(dxR((meta.mode==='pre'?'說課 Coach 流程稿（上課前）':'議課 Coach 流程稿')+(full?'・完整版':'・精簡版'),{b:1,sz:40,c:'0B3D6B'}),{jc:'center',after:20}));
   body.push(dxP(dxR('四步對話法（Validate → Uncover → Reframe → Equip）＋ SEL 四問',{b:1,c:'3B82B8'}),{jc:'center',after:100,bdrB:'CCCCCC'}));
   if(line1)body.push(dxP(line1,{after:20}));
-  if(meta.type)body.push(dxP(kv('老師類型',TYPEDESC[meta.type]||meta.type),{after:20}));
   if(meta.ctx&&flat(meta.ctx))body.push(dxP(kv('情境補充',meta.ctx),{after:20}));
   const nums=['一','二','三'];let n=0;
   const section=(title,list)=>{if(!list.length)return;
