@@ -682,20 +682,15 @@ function dxGrid(lines){
   if(n===3){W[0]=2800;W[1]=2200;W[2]=DX_W-5000}
   return dxTbl(W,cells[0],cells.slice(1));
 }
-function buildDocxXml(name,cards,meta,full){
+function buildDocxXml(cards,meta,full){
   meta=meta||{};
   const by={};cards.forEach(c=>{if(c.key&&!by[c.key])by[c.key]=c});
   const used=new Set(),pick=ks=>ks.map(k=>{if(by[k]){used.add(by[k]);return by[k]}}).filter(Boolean);
   const flow=pick(FLOW_KEYS),qs=pick(Q_KEYS);
   cards.forEach(c=>{if(!used.has(c))(c.cat==='提問技巧'?qs:flow).push(c)});
-  const flat=v=>String(v).replace(/\s*\r?\n\s*/g,' ').trim();
-  const kv=(k,v)=>dxR(k+'：',{b:1,c:'0B3D6B'})+dxR(flat(v));
-  const line1=[['教案',name],['班級／科目',meta.grade],['單元',meta.topic]].filter(x=>x[1]&&flat(x[1])).map(x=>kv(x[0],x[1])).join(dxR('　'));
   const body=[];
   body.push(dxP(dxR((meta.mode==='pre'?'說課 Coach 流程稿（上課前）':'議課 Coach 流程稿')+(full?'・完整版':'・精簡版'),{b:1,sz:40,c:'0B3D6B'}),{jc:'center',after:20}));
   body.push(dxP(dxR('四步對話法（Validate → Uncover → Reframe → Equip）＋ SEL 四問',{b:1,c:'3B82B8'}),{jc:'center',after:100,bdrB:'CCCCCC'}));
-  if(line1)body.push(dxP(line1,{after:20}));
-  if(meta.ctx&&flat(meta.ctx))body.push(dxP(kv('情境補充',meta.ctx),{after:20}));
   const nums=['一','二','三'];let n=0;
   const section=(title,list)=>{if(!list.length)return;
     body.push(dxP(dxR(nums[n++]+'、'+title,{b:1,sz:32,c:'0B3D6B'}),{style:'Heading1'}));
@@ -730,7 +725,7 @@ function zipStore(files,mime){
 function exportWord(name,cards,meta,full){
   if(!cards||!cards.length)return alert('目前沒有可匯出的內容，請先產生或調出教案工具卡');
   const enc=new TextEncoder();
-  const files=[['[Content_Types].xml',DX_CT],['_rels/.rels',DX_RELS],['word/document.xml',buildDocxXml(name,cards,meta,full)],['word/styles.xml',DX_STYLES],['word/footer1.xml',DX_FOOTER],['word/_rels/document.xml.rels',DX_DOCRELS]].map(f=>({name:f[0],data:enc.encode(f[1])}));
+  const files=[['[Content_Types].xml',DX_CT],['_rels/.rels',DX_RELS],['word/document.xml',buildDocxXml(cards,meta,full)],['word/styles.xml',DX_STYLES],['word/footer1.xml',DX_FOOTER],['word/_rels/document.xml.rels',DX_DOCRELS]].map(f=>({name:f[0],data:enc.encode(f[1])}));
   const d=new Date(),day=''+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());
   const fn=((meta&&meta.mode==='pre'?'說課流程_':'議課流程_')+(name||'教案')+(full?'_完整':'_精簡')+'_'+day).replace(/[\\\/:*?"<>|\s]+/g,'_')+'.docx';
   const a=document.createElement('a');a.href=URL.createObjectURL(zipStore(files,DOCX_MIME));a.download=fn;document.body.appendChild(a);a.click();a.remove();
